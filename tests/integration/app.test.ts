@@ -1,0 +1,89 @@
+import { beforeEach, describe, expect, it } from 'vitest';
+import { eq } from 'drizzle-orm';
+import { db } from '@/db';
+import { legacyWatchlist, session, userWatchlist } from '@/db/schema';
+import { allowRequest } from '@/lib/rate-limit';
+import { claimLegacyWatchlist } from '@/lib/legacy-watchlist';
+import { addToWatchlist, removeFromWatchlist } from '@/app/watchlist/actions';
+import { revokeDevice } from '@/app/account/actions';
+import { resetDb, type TestDb } from '../helpers/test-db';
+import { createSession, createUserWithSession, seedCatalog } from '../helpers/fixtures';
+import { actAs } from '../helpers/next-stubs';
+
+beforeEach(async () => {
+  await resetDb(db as unknown as TestDb);
+  actAs(null);
+});
+
+describe('allowRequest', () => {
+  it('allows up to the limit per window, then resets', async () => {
+    const t = 1_000_000_000_000;
+    for (let i = 0; i < 3; i++) expect(await allowRequest('k', 3, 60_000, t)).toBe(true);
+    expect(await allowRequest('k', 3, 60_000, t + 1_000)).toBe(false);
+    expect(await allowRequest('k', 3, 60_000, t + 60_000)).toBe(true); // next window
+  });
+
+  it('keeps keys independent', async () => {
+    expect(await allowRequest('a', 1, 60_000, 0)).toBe(true);
+    expect(await allowRequest('a', 1, 60_000, 0)).toBe(false);
+    expect(await allowRequest('b', 1, 60_000, 0)).toBe(true);
+  });
+});
+
+describe('watchlist server actions', () => {
+  it('require a signed-in user', async () => {
+    await expect(addToWatchlist(155)).rejects.toThrow('Unauthorized');
+    await expect(removeFromWatchlist(155)).rejects.toThrow('Unauthorized');
+  });
+
+  it('write only to the caller’s own list', async () => {
+    await seedCatalog(db as unknown as TestDb);
+    const alice = await createUserWithSession('alice@example.com');
+    actAs(alice.token);
+    await addToWatchlist(155);
+    const rows = await db.select().from(userWatchlist);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ userId: alice.user.id, tmdbId: 155, title: 'The Dark Knight' });
+  });
+});
+
+describe('revokeDevice', () => {
+  it('signs out another of your own devices', async () => {
+    const alice = await createUserWithSession('alice@example.com');
+    const tv = await createSession(alice.user.id, 'MovieRecsTV/1.0 (Chromecast)');
+    actAs(alice.token);
+    await revokeDevice(tv.sessionId);
+    expect(await db.select().from(session).where(eq(session.id, tv.sessionId))).toEqual([]);
+  });
+
+  it('cannot touch someone else’s session', async () => {
+    const alice = await createUserWithSession('alice@example.com');
+    const bob = await createUserWithSession('bob@example.com');
+    actAs(alice.token);
+    await revokeDevice(bob.sessionId);
+    expect(await db.select().from(session).where(eq(session.id, bob.sessionId))).toHaveLength(1);
+  });
+
+  it('requires a signed-in user', async () => {
+    await expect(revokeDevice('anything')).rejects.toThrow('Unauthorized');
+  });
+});
+
+describe('claimLegacyWatchlist', () => {
+  it('copies the old shared list into one account, idempotently', async () => {
+    const alice = await createUserWithSession('alice@example.com');
+    await db.insert(legacyWatchlist).values([
+      { tmdbId: 9016, title: 'Treasure Planet', releaseDate: '2002-11-26', voteAverage: 7.6 },
+      { tmdbId: 155, title: 'The Dark Knight' },
+    ]);
+    expect(await claimLegacyWatchlist('ALICE@example.com')).toBe(2);
+    expect(await claimLegacyWatchlist('alice@example.com')).toBe(2);
+    const rows = await db.select().from(userWatchlist);
+    expect(rows.map((r) => r.tmdbId).sort()).toEqual([155, 9016]);
+    expect(rows.every((r) => r.userId === alice.user.id)).toBe(true);
+  });
+
+  it('requires the account to exist', async () => {
+    await expect(claimLegacyWatchlist('nobody@example.com')).rejects.toThrow('No account');
+  });
+});
