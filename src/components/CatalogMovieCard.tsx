@@ -31,13 +31,7 @@ export function CatalogMovieCard({ movie, inWatchlist = false }: { movie: CardMo
         </div>
       </Link>
       <WatchlistButton
-        movie={{
-          tmdbId: movie.tmdbId,
-          title: movie.title,
-          posterPath: movie.posterPath,
-          releaseDate: movie.releaseDate,
-          voteAverage: movie.voteAverage,
-        }}
+        tmdbId={movie.tmdbId}
         inWatchlist={inWatchlist}
         className="absolute top-1.5 right-1.5 p-1.5 rounded-full bg-black/55 text-white hover:bg-black/80 backdrop-blur-sm"
       />

@@ -1,5 +1,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
+import { getViewer } from '@/lib/auth';
 import { getWatchlist } from '@/lib/watchlist';
 import { getPosterUrl, extractYear } from '@/lib/tmdb';
 import { WatchlistButton } from '@/components/WatchlistButton';
@@ -7,7 +9,9 @@ import { WatchlistButton } from '@/components/WatchlistButton';
 export const dynamic = 'force-dynamic';
 
 export default async function WatchlistPage() {
-  const items = await getWatchlist();
+  const viewer = await getViewer();
+  if (!viewer) redirect(`/login?next=${encodeURIComponent('/watchlist')}`);
+  const items = await getWatchlist(viewer.id);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
@@ -37,13 +41,7 @@ export default async function WatchlistPage() {
                 </div>
               </Link>
               <WatchlistButton
-                movie={{
-                  tmdbId: m.tmdbId,
-                  title: m.title,
-                  posterPath: m.posterPath,
-                  releaseDate: m.releaseDate,
-                  voteAverage: m.voteAverage,
-                }}
+                tmdbId={m.tmdbId}
                 inWatchlist
                 className="absolute top-1.5 right-1.5 p-1.5 rounded-full bg-black/55 hover:bg-black/80 text-white"
               />

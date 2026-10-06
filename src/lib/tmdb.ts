@@ -45,6 +45,7 @@ export interface TMDBMovieDetail extends TMDBMovie {
   production_countries: Array<{ iso_3166_1: string; name: string }>;
   spoken_languages: Array<{ english_name: string; iso_639_1: string; name: string }>;
   videos?: { results: TMDBVideo[] };
+  'watch/providers'?: { results: TMDBWatchProvidersResponse['results'] };
 }
 
 export interface TMDBWatchProvider {
@@ -54,18 +55,19 @@ export interface TMDBWatchProvider {
   provider_id: number;
 }
 
+export interface TMDBRegionProviders {
+  link: string;
+  flatrate?: TMDBWatchProvider[];
+  rent?: TMDBWatchProvider[];
+  buy?: TMDBWatchProvider[];
+  free?: TMDBWatchProvider[];
+  ads?: TMDBWatchProvider[];
+}
+
 export interface TMDBWatchProvidersResponse {
   id: number;
   results: {
-    CA?: {
-      link: string;
-      flatrate?: TMDBWatchProvider[];
-      rent?: TMDBWatchProvider[];
-      buy?: TMDBWatchProvider[];
-      free?: TMDBWatchProvider[];
-      ads?: TMDBWatchProvider[];
-    };
-    [key: string]: any;
+    [region: string]: TMDBRegionProviders | undefined;
   };
 }
 
@@ -129,10 +131,6 @@ export function getTrailerKey(movie: TMDBMovieDetail): string | null {
     vids.find((v) => v.type === 'Teaser') ??
     vids[0];
   return pick?.key ?? null;
-}
-
-export async function getMovieWatchProviders(movieId: number): Promise<TMDBWatchProvidersResponse> {
-  return fetchTMDB<TMDBWatchProvidersResponse>(`/movie/${movieId}/watch/providers`);
 }
 
 export async function getGenres(): Promise<TMDBGenresResponse> {

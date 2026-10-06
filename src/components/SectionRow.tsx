@@ -10,7 +10,6 @@ import type { SectionId } from '@/lib/taxonomy';
 export function SectionRow({
   id,
   label,
-  blurb,
   genreId,
   initialMovies,
   total,
@@ -18,7 +17,6 @@ export function SectionRow({
 }: {
   id: SectionId;
   label: string;
-  blurb: string;
   genreId?: number;
   initialMovies: CardMovie[];
   total: number;
@@ -59,6 +57,12 @@ export function SectionRow({
     if (dir > 0 && el.scrollLeft + el.clientWidth >= el.scrollWidth - page) loadMore();
   };
 
+  // Trackpad / mouse-wheel scrolling near the end pulls the next page (loadMore guards duplicates).
+  const onScroll = () => {
+    const el = ref.current;
+    if (el && el.scrollLeft + el.clientWidth >= el.scrollWidth - 200) loadMore();
+  };
+
   return (
     <section className="mb-8" aria-labelledby={`section-${id}`}>
       <div className="flex items-center justify-between gap-3 mb-3">
@@ -66,7 +70,6 @@ export function SectionRow({
           {label}
         </h2>
         <div className="flex items-center gap-1.5">
-          <span className="hidden sm:inline text-xs text-gray-500 mr-1">{blurb}</span>
           <button
             type="button"
             onClick={() => scroll(-1)}
@@ -85,7 +88,7 @@ export function SectionRow({
           </button>
         </div>
       </div>
-      <div ref={ref} className="flex gap-3 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <div ref={ref} onScroll={onScroll} className="flex gap-3 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {movies.map((m) => (
           <div key={m.id} className="w-[132px] sm:w-[148px] shrink-0">
             <CatalogMovieCard movie={m} inWatchlist={savedIds.includes(m.tmdbId)} />

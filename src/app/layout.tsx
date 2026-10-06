@@ -3,6 +3,8 @@ import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
+import { ViewerProvider } from '@/components/ViewerProvider';
+import { getViewer } from '@/lib/auth';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -17,7 +19,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: 'Movie Discovery',
   description: 'Discover popular movies and find where to stream them in Canada',
-  metadataBase: new URL('http://localhost:3000'),
+  metadataBase: new URL(
+    process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : 'http://localhost:3000'
+  ),
   openGraph: {
     title: 'Movie Discovery',
     description: 'Discover popular movies and find where to stream them in Canada',
@@ -42,18 +46,21 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  const viewer = await getViewer();
   return (
     <html
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-screen flex flex-col bg-background text-foreground">
-        <Header />
-        <main className="flex-1">{children}</main>
-        <Footer />
+        <ViewerProvider viewer={viewer && { email: viewer.email, name: viewer.name, image: viewer.image }}>
+          <Header />
+          <main className="flex-1">{children}</main>
+          <Footer />
+        </ViewerProvider>
       </body>
     </html>
   );

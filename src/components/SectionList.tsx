@@ -1,13 +1,15 @@
 import { getBrowsePage } from '@/lib/browse';
 import { getWatchlistIds } from '@/lib/watchlist';
+import { getViewer } from '@/lib/auth';
 import { SectionRow } from './SectionRow';
 import { CatalogMovieCard } from './CatalogMovieCard';
 import type { GenreFilter } from '@/lib/taxonomy';
 
 export async function SectionList({ genreId, filter }: { genreId?: number; filter?: GenreFilter }) {
+  const viewer = await getViewer();
   const [result, watchlistIds] = await Promise.all([
     getBrowsePage({ genreId, filter }),
-    getWatchlistIds(),
+    viewer ? getWatchlistIds(viewer.id) : Promise.resolve([] as number[]),
   ]);
 
   if (result.mode === 'list') {
@@ -31,7 +33,6 @@ export async function SectionList({ genreId, filter }: { genreId?: number; filte
             key={s.id}
             id={s.id}
             label={s.label}
-            blurb={s.blurb}
             genreId={genreId}
             initialMovies={s.movies}
             total={s.total}

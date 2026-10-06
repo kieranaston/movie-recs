@@ -5,7 +5,9 @@
  *   1. genres   - upsert the TMDB genre list
  *   2. pool     - pull /discover slices, upsert movies + movie_genres
  *   3. metadata - fetch keywords + production companies (facet lexicon)
- *   4. stats    - report C (vote-weighted mean)
+ *   4. providers - CA streaming availability: new titles, plus re-checks (weekly for
+ *                  unavailable/recent titles, monthly for the rest)
+ *   5. stats    - report C (vote-weighted mean)
  *
  * Usage:
  *   npm run ingest
@@ -17,6 +19,7 @@ import { drizzle } from 'drizzle-orm/postgres-js';
 import { sql, inArray } from 'drizzle-orm';
 import * as fs from 'node:fs';
 import * as schema from '../src/db/schema';
+import type { TMDBMovie, TMDBMovieDetail, TMDBRegionProviders, TMDBWatchProvider, TMDBWatchProvidersResponse } from '../src/lib/tmdb';
 import { genres, movieCompanies, movieGenres, movieKeywords, movieWatchProviders, movies, keywords, productionCompanies, watchProviders } from '../src/db/schema';
 
 // ---------- env ----------
@@ -54,7 +57,9 @@ const SKIP_PROVIDERS = args.includes('--skip-providers');
 
 const TMDB = 'https://api.themoviedb.org/3';
 
-async function tmdbGet<T = any>(path: string, params: Record<string, string | number> = {}): Promise<T> {
+type MovieWithKeywords = TMDBMovieDetail & { keywords?: { keywords: { id: number; name: string }[] } };
+
+async function tmdbGet<T>(path: string, params: Record<string, string | number> = {}): Promise<T> {
   const qs = new URLSearchParams({ api_key: TMDB_KEY!, language: 'en-US' });
   for (const [k, v] of Object.entries(params)) qs.set(k, String(v));
   for (let attempt = 0; attempt < 3; attempt++) {
@@ -145,11 +150,11 @@ async function buildSlices(): Promise<{ label: string; params: Record<string, st
 
 async function ingestPool() {
   const slices = await buildSlices();
-  const seen = new Map<number, any>();
+  const seen = new Map<number, TMDBMovie>();
   for (const slice of slices) {
     const pages = LIMIT ? Math.min(slice.pages, Math.ceil(LIMIT / 20)) : (PAGES || slice.pages);
     for (let p = 1; p <= pages; p++) {
-      const d = await tmdbGet<{ results: any[] }>('/discover/movie', {
+      const d = await tmdbGet<{ results?: TMDBMovie[] }>('/discover/movie', {
         ...slice.params, page: p, include_adult: 'false',
       });
       for (const m of d.results ?? []) seen.set(m.id, m);
@@ -244,15 +249,15 @@ async function ingestMetadata() {
   for (let start = 0; start < rows.length; start += BATCH) {
     const batch = rows.slice(start, start + BATCH);
     const kwMap = new Map<number, string>();
-    const coMap = new Map<number, any>();
+    const coMap = new Map<number, TMDBMovieDetail['production_companies'][number]>();
     const perMovie: { movieId: number; keywordIds: number[]; companyIds: number[] }[] = [];
 
     const results = await mapLimit(batch, 8, async (r) => ({
-      r, det: await tmdbGet<any>(`/movie/${r.tmdb_id}`, { append_to_response: 'keywords' }),
+      r, det: await tmdbGet<MovieWithKeywords>(`/movie/${r.tmdb_id}`, { append_to_response: 'keywords' }),
     }));
     for (const { r, det } of results) {
-      const kws: any[] = det.keywords?.keywords ?? [];
-      const cos: any[] = det.production_companies ?? [];
+      const kws = det.keywords?.keywords ?? [];
+      const cos = det.production_companies ?? [];
       for (const k of kws) kwMap.set(k.id, k.name);
       for (const c of cos) coMap.set(c.id, c);
       perMovie.push({
@@ -314,14 +319,26 @@ async function ingestMetadata() {
 }
 
 // ---------- stage 3b: streaming availability (CA) ----------
-const PROVIDER_TYPES = ['flatrate', 'free', 'ads', 'rent', 'buy'];
+const PROVIDER_TYPES = ['flatrate', 'free', 'ads', 'rent', 'buy'] as const satisfies readonly (keyof TMDBRegionProviders)[];
+
+// Availability drifts (theatrical → streaming, titles leaving services), so re-check on a schedule:
+// titles that are unavailable or recent change most often; everything else is re-checked monthly.
+const RECHECK_VOLATILE_DAYS = 7;
+const RECHECK_ALL_DAYS = 30;
+const RECENT_YEARS = 2;
 
 async function ingestProviders() {
   const LIMIT = argVal('--providers-limit', 0);
   const todo = await db.execute<{ id: number; tmdb_id: number }>(sql`
     select id, tmdb_id from ${movies}
     where providers_fetched_at is null
-    order by vote_count desc nulls last
+       or providers_fetched_at < now() - make_interval(days => ${RECHECK_ALL_DAYS})
+       or (
+         providers_fetched_at < now() - make_interval(days => ${RECHECK_VOLATILE_DAYS})
+         and (not available_anywhere
+              or release_date >= to_char(current_date - make_interval(years => ${RECENT_YEARS}), 'YYYY-MM-DD'))
+       )
+    order by providers_fetched_at asc nulls first, vote_count desc nulls last
     ${LIMIT ? sql`limit ${LIMIT}` : sql``}
   `);
   const rows = todo as unknown as { id: number; tmdb_id: number }[];
@@ -332,11 +349,11 @@ async function ingestProviders() {
   for (let start = 0; start < rows.length; start += BATCH) {
     const batch = rows.slice(start, start + BATCH);
     const results = await mapLimit(batch, 8, async (r) => {
-      const d = await tmdbGet<any>(`/movie/${r.tmdb_id}/watch/providers`);
-      return { r, regions: (d.results ?? {}) as Record<string, any> };
+      const d = await tmdbGet<TMDBWatchProvidersResponse>(`/movie/${r.tmdb_id}/watch/providers`);
+      return { r, regions: d.results ?? {} };
     });
 
-    const provMap = new Map<number, any>();
+    const provMap = new Map<number, TMDBWatchProvider>();
     const perMovie: { movieId: number; entries: { tmdbId: number; type: string }[]; available: boolean }[] = [];
     for (const { r, regions } of results) {
       const entries: { tmdbId: number; type: string }[] = [];
@@ -352,7 +369,7 @@ async function ingestProviders() {
         }
       }
       // "Released / watchable somewhere" = any region offers any of the types.
-      const available = Object.values(regions).some((reg: any) =>
+      const available = Object.values(regions).some((reg) =>
         PROVIDER_TYPES.some((t) => (reg?.[t]?.length ?? 0) > 0)
       );
       perMovie.push({ movieId: r.id, entries, available });
@@ -414,7 +431,7 @@ async function reportStats() {
   const row = (c as unknown as { c: number; n: number; votes: number }[])[0];
   console.log(`\n[stats] C (vote-weighted) = ${Number(row.c).toFixed(3)} over ${row.n} movies`);
   const counts = await db.execute<{ n: number }>(sql`select count(*)::int as n from ${movies}`);
-  console.log(`[stats] movies=${(counts as any)[0].n}`);
+  console.log(`[stats] movies=${(counts as unknown as { n: number }[])[0].n}`);
 }
 
 // ---------- run ----------
