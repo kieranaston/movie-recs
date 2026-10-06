@@ -62,8 +62,14 @@ jobs:
         run: |
           APK=app/build/outputs/apk/release/app-release.apk
           APKSIGNER=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)
-          ACTUAL=$("$APKSIGNER" verify --print-certs "$APK" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p')
-          [ "$ACTUAL" = "$EXPECTED_CERT_SHA256" ] || { echo "::error::APK signed with unexpected certificate $ACTUAL"; exit 1; }
+          CERTS=$("$APKSIGNER" verify --print-certs "$APK")
+          # Output wording varies across build-tools versions; take the first certificate's SHA-256.
+          ACTUAL=$(echo "$CERTS" | grep -m1 -oE 'certificate SHA-256 digest: [0-9a-f]{64}' | awk '{print $NF}')
+          if [ "$ACTUAL" != "$EXPECTED_CERT_SHA256" ]; then
+            echo "$CERTS" # certificate details are public
+            echo "::error::APK signed with unexpected certificate '$ACTUAL'"
+            exit 1
+          fi
           cp "$APK" "$RUNNER_TEMP/movie-recs-tv.apk"
           (cd "$RUNNER_TEMP" && sha256sum movie-recs-tv.apk > movie-recs-tv.apk.sha256)
 
