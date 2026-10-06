@@ -1,0 +1,83 @@
+package com.kieranaston.movierecs
+
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.assertIsFocused
+import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performKeyInput
+import androidx.compose.ui.test.pressKey
+import androidx.compose.ui.test.requestFocus
+import androidx.compose.ui.test.assertTextEquals
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isFocusable
+import androidx.compose.ui.test.onRoot
+import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.kieranaston.movierecs.data.Movie
+import com.kieranaston.movierecs.data.MovieDetail
+import com.kieranaston.movierecs.ui.components.MovieRow
+import com.kieranaston.movierecs.ui.components.rememberFocusMemory
+import com.kieranaston.movierecs.ui.details.DetailsContent
+import com.kieranaston.movierecs.ui.signin.SignInContent
+import com.kieranaston.movierecs.ui.theme.MovieTheme
+import org.junit.Assert.assertEquals
+import org.junit.Rule
+import org.junit.Test
+import org.junit.runner.RunWith
+
+@RunWith(AndroidJUnit4::class)
+class UiTest {
+    @get:Rule val compose = createComposeRule()
+
+    private val detail = MovieDetail(tmdbId = 329865, title = "Arrival", year = 2016, runtime = 116, trailerKey = "7W1m5ER3I1Y")
+
+    @Test fun signInShowsTheCodeAndQr() {
+        compose.setContent {
+            MovieTheme { SignInContent("WDJBMJHT", "https://movies.example/activate", "https://movies.example/activate?user_code=WDJBMJHT", afterDenial = false) }
+        }
+        compose.onNodeWithTag("user-code").assertTextEquals("WDJB-MJHT")
+        compose.onNodeWithText("Or visit movies.example/activate and enter").assertExists()
+        compose.onNodeWithContentDescription("QR code to sign in").assertExists()
+    }
+
+    @Test fun signInExplainsADenial() {
+        compose.setContent { MovieTheme { SignInContent("WDJBMJHT", "https://x/activate", "https://x/activate?user_code=WDJBMJHT", afterDenial = true) } }
+        compose.onNodeWithText("That request was denied. Here's a new code.").assertExists()
+    }
+
+    @OptIn(ExperimentalTestApi::class)
+    @Test fun detailsWiresItsActionsToTheRemote() {
+        var toggles = 0
+        var trailer: String? = null
+        compose.setContent { MovieTheme { DetailsContent(detail, inWatchlist = false, onToggleWatchlist = { toggles++ }, onPlayTrailer = { trailer = it }) } }
+        val button = { label: String -> compose.onNode(hasText(label) and isFocusable()) }
+
+        button("Trailer").assertIsFocused() // primary action takes focus for the remote
+        compose.onRoot().performKeyInput { pressKey(Key.DirectionCenter) }
+        assertEquals("7W1m5ER3I1Y", trailer)
+
+        compose.onRoot().performKeyInput { pressKey(Key.DirectionRight) }
+        button("Add to Watchlist").assertIsFocused()
+        compose.onRoot().performKeyInput { pressKey(Key.DirectionCenter) }
+        assertEquals(1, toggles)
+    }
+
+    @Test fun detailsWithoutTrailerFocusesWatchlist() {
+        compose.setContent { MovieTheme { DetailsContent(detail.copy(trailerKey = null), inWatchlist = true, onToggleWatchlist = {}, onPlayTrailer = {}) } }
+        compose.onNodeWithText("Trailer").assertDoesNotExist()
+        compose.onNode(hasText("In Watchlist") and isFocusable()).assertIsFocused()
+    }
+
+    @OptIn(ExperimentalTestApi::class)
+    @Test fun dpadMovesAlongARow() {
+        val movies = listOf(Movie(1, "One"), Movie(2, "Two"), Movie(3, "Three"))
+        compose.setContent { MovieTheme { MovieRow("Row", movies, onOpen = {}, focusPrefix = "r", memory = rememberFocusMemory()) } }
+        val card = { title: String -> compose.onNode(hasText(title) and isFocusable()) }
+        card("One").requestFocus()
+        card("One").assertIsFocused()
+        compose.onRoot().performKeyInput { pressKey(Key.DirectionRight) }
+        card("Two").assertIsFocused()
+    }
+}

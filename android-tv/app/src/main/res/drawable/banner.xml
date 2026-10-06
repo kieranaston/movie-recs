@@ -1,0 +1,14 @@
+<!-- TV launcher banner. Drawn only by the launcher, so the large-vector cost is irrelevant. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:ignore="VectorRaster"
+    android:width="320dp" android:height="180dp"
+    android:viewportWidth="320" android:viewportHeight="180">
+    <path android:fillColor="#FF141414" android:pathData="M0,0h320v180h-320z" />
+    <path android:fillColor="#FF1F1F1F" android:pathData="M0,0h320v22h-320z M0,158h320v22h-320z" />
+    <path android:fillColor="#FF0A0A0A"
+        android:pathData="M14,7h14v8h-14z M46,7h14v8h-14z M78,7h14v8h-14z M110,7h14v8h-14z M142,7h14v8h-14z M174,7h14v8h-14z M206,7h14v8h-14z M238,7h14v8h-14z M270,7h14v8h-14z M302,7h14v8h-14z
+                          M14,165h14v8h-14z M46,165h14v8h-14z M78,165h14v8h-14z M110,165h14v8h-14z M142,165h14v8h-14z M174,165h14v8h-14z M206,165h14v8h-14z M238,165h14v8h-14z M270,165h14v8h-14z M302,165h14v8h-14z" />
+    <path android:fillColor="@color/accent" android:pathData="M160,90m-44,0a44,44 0,1 1,88 0a44,44 0,1 1,-88 0" />
+    <path android:fillColor="#FFFFFFFF" android:pathData="M148,68L148,112L184,90Z" />
+</vector>
