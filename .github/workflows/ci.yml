@@ -86,11 +86,13 @@ jobs:
           sudo udevadm trigger --name-match=kvm
       - uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 36
-          target: android-tv
-          arch: x86_64 # 64-bit image: boots reliably on GitHub's x86_64 runners
-          profile: tv_1080p
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot
+          # A lightweight AOSP image: TV images are too heavy to boot on GitHub's 2-core runners.
+          # These tests (Keystore, Compose UI, D-pad focus) don't depend on TV system apps; the leanback
+          # manifest flag only filters store listings, not adb installs. Real-TV checks run locally.
+          api-level: 34
+          target: default
+          arch: x86_64
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot -camera-back none -no-metrics
           emulator-boot-timeout: 900
           disable-animations: true
           working-directory: android-tv
