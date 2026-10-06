@@ -1,10 +1,10 @@
 import { Suspense } from 'react';
-import { Search, ArrowRight } from 'lucide-react';
+import { Search } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { MovieGrid, MovieCardSkeleton } from '@/components/MovieCard';
-import { searchMovies } from '@/lib/tmdb';
+import { searchMovies, type TMDBSearchResponse } from '@/lib/tmdb';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,78 +14,80 @@ interface SearchPageProps {
 
 async function SearchResults({ searchParams }: SearchPageProps) {
   const params = await searchParams;
-  const query = params.q?.trim() ?? '';
-  const page = parseInt(params.page ?? '1', 10);
+  const query = params.q?.trim().slice(0, 100) ?? '';
+  const parsed = Number.parseInt(params.page ?? '1', 10);
+  const page = Number.isInteger(parsed) ? Math.min(Math.max(parsed, 1), 500) : 1; // TMDB serves pages 1–500
 
   if (!query) {
     return (
       <div className="text-center py-16">
         <Search className="h-16 w-16 mx-auto text-gray-600 mb-4" aria-hidden="true" />
         <h2 className="text-2xl font-bold text-white mb-2">Search for Movies</h2>
-        <p className="text-gray-400">Enter a movie title to find what you're looking for</p>
+        <p className="text-gray-400">Enter a movie title to find what you&apos;re looking for</p>
       </div>
     );
   }
 
+  let data: TMDBSearchResponse;
   try {
-    const data = await searchMovies(query, page);
-
-    if (data.results.length === 0) {
-      return (
-        <div className="text-center py-16">
-          <Search className="h-16 w-16 mx-auto text-gray-600 mb-4" aria-hidden="true" />
-          <h2 className="text-2xl font-bold text-white mb-2">No Results Found</h2>
-          <p className="text-gray-400">No movies found for "{query}"</p>
-        </div>
-      );
-    }
-
-    return (
-      <>
-        <div className="mb-6">
-          <h2 className="text-2xl font-bold text-white">
-            Results for "<span className="text-primary">{query}</span>"
-          </h2>
-          <p className="text-gray-400 mt-1">
-            {data.total_results} result{data.total_results !== 1 ? 's' : ''} • Page {page} of {data.total_pages}
-          </p>
-        </div>
-
-        <MovieGrid movies={data.results} />
-
-        {data.total_pages > 1 && (
-          <nav className="mt-8 flex items-center justify-center gap-2" aria-label="Pagination">
-            {page > 1 && (
-              <Link
-                href={`/search?q=${encodeURIComponent(query)}&page=${page - 1}`}
-                className="px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-md text-white transition-colors"
-              >
-                Previous
-              </Link>
-            )}
-            <span className="px-4 py-2 text-gray-400">
-              Page {page} of {data.total_pages}
-            </span>
-            {page < data.total_pages && (
-              <Link
-                href={`/search?q=${encodeURIComponent(query)}&page=${page + 1}`}
-                className="px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-md text-white transition-colors"
-              >
-                Next
-              </Link>
-            )}
-          </nav>
-        )}
-      </>
-    );
+    data = await searchMovies(query, page);
   } catch {
     return (
       <div className="text-center py-12 text-gray-400">
-        <p>Unable to search movies.</p>
-        <p className="text-sm mt-1">Check your TMDB_API_KEY in .env</p>
+        <p>Unable to search movies right now.</p>
+        <p className="text-sm mt-1">Please try again later.</p>
       </div>
     );
   }
+
+  if (data.results.length === 0) {
+    return (
+      <div className="text-center py-16">
+        <Search className="h-16 w-16 mx-auto text-gray-600 mb-4" aria-hidden="true" />
+        <h2 className="text-2xl font-bold text-white mb-2">No Results Found</h2>
+        <p className="text-gray-400">No movies found for &ldquo;{query}&rdquo;</p>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div className="mb-6">
+        <h2 className="text-2xl font-bold text-white">
+          Results for &ldquo;<span className="text-primary">{query}</span>&rdquo;
+        </h2>
+        <p className="text-gray-400 mt-1">
+          {data.total_results} result{data.total_results !== 1 ? 's' : ''} • Page {page} of {data.total_pages}
+        </p>
+      </div>
+
+      <MovieGrid movies={data.results} />
+
+      {data.total_pages > 1 && (
+        <nav className="mt-8 flex items-center justify-center gap-2" aria-label="Pagination">
+          {page > 1 && (
+            <Link
+              href={`/search?q=${encodeURIComponent(query)}&page=${page - 1}`}
+              className="px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-md text-white transition-colors"
+            >
+              Previous
+            </Link>
+          )}
+          <span className="px-4 py-2 text-gray-400">
+            Page {page} of {data.total_pages}
+          </span>
+          {page < data.total_pages && (
+            <Link
+              href={`/search?q=${encodeURIComponent(query)}&page=${page + 1}`}
+              className="px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-md text-white transition-colors"
+            >
+              Next
+            </Link>
+          )}
+        </nav>
+      )}
+    </>
+  );
 }
 
 function SearchResultsSkeleton() {

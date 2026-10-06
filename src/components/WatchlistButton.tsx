@@ -2,21 +2,25 @@
 
 import { useState, useTransition } from 'react';
 import { Bookmark, BookmarkCheck } from 'lucide-react';
-import { addToWatchlist, removeFromWatchlist, type WatchlistInput } from '@/app/watchlist/actions';
+import { addToWatchlist, removeFromWatchlist } from '@/app/watchlist/actions';
+import { useViewer } from './ViewerProvider';
 
 export function WatchlistButton({
-  movie,
+  tmdbId,
   inWatchlist,
   className = '',
   showLabel = false,
 }: {
-  movie: WatchlistInput;
+  tmdbId: number;
   inWatchlist: boolean;
   className?: string;
   showLabel?: boolean;
 }) {
+  const viewer = useViewer();
   const [saved, setSaved] = useState(inWatchlist);
   const [pending, startTransition] = useTransition();
+
+  if (!viewer) return null;
 
   const toggle = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -24,8 +28,12 @@ export function WatchlistButton({
     const next = !saved;
     setSaved(next);
     startTransition(async () => {
-      if (next) await addToWatchlist(movie);
-      else await removeFromWatchlist(movie.tmdbId);
+      try {
+        if (next) await addToWatchlist(tmdbId);
+        else await removeFromWatchlist(tmdbId);
+      } catch {
+        setSaved(!next); // roll back the optimistic toggle
+      }
     });
   };
 

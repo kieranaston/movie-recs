@@ -2,20 +2,24 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { Search, Menu, X, ChevronDown } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { GENRE_PAGES } from '@/lib/taxonomy';
+import { useViewer } from './ViewerProvider';
 
 export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const pathname = usePathname();
+  const router = useRouter();
+  const viewer = useViewer();
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
-      window.location.href = `/search?q=${encodeURIComponent(searchQuery.trim())}`;
+      router.push(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
+      setIsMenuOpen(false);
     }
   };
 
@@ -48,6 +52,21 @@ export function Header() {
               </div>
             </form>
 
+            {viewer ? (
+              <Link
+                href="/account"
+                className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-gray-800 text-sm font-semibold text-white hover:bg-gray-700"
+                aria-label={`Account (${viewer.email})`}
+                title={viewer.email}
+              >
+                {(viewer.name || viewer.email).charAt(0).toUpperCase()}
+              </Link>
+            ) : (
+              <Link href="/login" className="text-sm text-gray-300 hover:text-white whitespace-nowrap">
+                Sign in
+              </Link>
+            )}
+
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
               className="md:hidden p-2 text-gray-400 hover:text-white"
@@ -64,9 +83,11 @@ export function Header() {
           <Link href="/" role="tab" aria-selected={pathname === '/'} className={tabClass(pathname === '/')}>
             Home
           </Link>
-          <Link href="/watchlist" role="tab" aria-selected={pathname === '/watchlist'} className={tabClass(pathname === '/watchlist')}>
-            Watchlist
-          </Link>
+          {viewer && (
+            <Link href="/watchlist" role="tab" aria-selected={pathname === '/watchlist'} className={tabClass(pathname === '/watchlist')}>
+              Watchlist
+            </Link>
+          )}
           {GENRE_PAGES.map((g) => {
             const active = pathname === `/genre/${g.slug}`;
             if (g.filters.length === 0) {

@@ -1,0 +1,14 @@
+# Copy to local.properties (gitignored) and fill in.
+sdk.dir=/Users/YOU/Library/Android/sdk
+
+# Optional. Release default: https://movie-recs-tawny.vercel.app (must be https).
+# api.baseUrl=https://movie-recs-tawny.vercel.app
+# Optional. Debug builds only — e.g. the emulator talking to `npm run dev` on your Mac:
+# api.debugBaseUrl=http://10.0.2.2:3000
+
+# Optional release signing key (falls back to the local debug key if unset).
+# Create one with: keytool -genkeypair -keystore ~/.android/movierecs-release.jks -alias movierecs -keyalg RSA -keysize 4096 -validity 10000
+# release.storeFile=/Users/YOU/.android/movierecs-release.jks
+# release.storePassword=
+# release.keyAlias=movierecs
+# release.keyPassword=

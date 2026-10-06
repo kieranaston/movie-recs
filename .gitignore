@@ -40,3 +40,12 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 .neon
+
+# test artifacts
+/coverage
+/playwright-report
+/test-results
+/tests/e2e/.fixtures.json
+
+# …but keep the template
+!.env.example

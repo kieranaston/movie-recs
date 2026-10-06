@@ -1,0 +1,40 @@
+name: Weekly TMDB Ingest
+
+# Refreshes the production catalog: new films, updated ratings/votes, and streaming availability
+# (new titles, plus re-checks — weekly for unavailable/recent titles, monthly for the rest).
+# The site picks up changes within an hour (catalog cache).
+
+on:
+  schedule:
+    - cron: '0 3 * * 0' # Sundays 03:00 UTC
+  workflow_dispatch: # run on demand from the Actions tab
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ingest
+  cancel-in-progress: false # never interrupt a running ingest
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30 # a full run takes ~2 minutes
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Check secrets
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
+        run: |
+          [ -n "$DATABASE_URL" ] || { echo "::error::Add the DATABASE_URL repository secret (Neon production, pooled)"; exit 1; }
+          [ -n "$TMDB_API_KEY" ] || { echo "::error::Add the TMDB_API_KEY repository secret"; exit 1; }
+      - run: npm run ingest
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
