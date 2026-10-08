@@ -17,10 +17,8 @@ jobs:
     name: Website — lint, types, tests, build, e2e
     runs-on: ubuntu-latest
     timeout-minutes: 25
-    env:
-      # The build never connects to a database; these only satisfy start-up checks. No real secrets in CI.
-      DATABASE_URL: postgres://ci:ci@localhost:5432/ci
-      BETTER_AUTH_SECRET: ci-only-secret-ci-only-secret-0123456789
+    # No app env vars on purpose: the build must succeed without them, like a Vercel preview.
+    # Tests and e2e supply their own throwaway values and in-memory databases.
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
