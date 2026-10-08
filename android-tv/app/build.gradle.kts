@@ -83,6 +83,9 @@ android {
     lint {
         warningsAsErrors = true
         abortOnError = true
+        // "A newer version is available" checks depend on what was published upstream today, so they'd
+        // break CI on someone else's release. Dependabot proposes those updates as pull requests instead.
+        disable += setOf("AndroidGradlePluginVersion", "GradleDependency", "NewerVersionAvailable", "OldTargetApi")
     }
 }
 
