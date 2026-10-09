@@ -90,7 +90,12 @@ export function SectionRow({
           </button>
         </div>
       </div>
-      <div ref={ref} onScroll={onScroll} className={`${POSTER_ROW} pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden`}>
+      {/* Extra padding (cancelled by negative margins) gives a lifted poster room so it isn't clipped. */}
+      <div
+        ref={ref}
+        onScroll={onScroll}
+        className={`group/row ${POSTER_ROW} -mx-2 -my-3 scroll-px-2 px-2 py-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden`}
+      >
         {movies.map((m) => (
           <div key={m.id} className="snap-start">
             <CatalogMovieCard movie={m} inWatchlist={savedIds.includes(m.tmdbId)} />

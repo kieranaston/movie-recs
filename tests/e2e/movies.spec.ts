@@ -75,3 +75,36 @@ test('a shared movie link opens the full page, not a popup', async ({ page }) =>
   await expect(popup(page)).toHaveCount(0);
   await expect(page.locator('main article')).toBeVisible();
 });
+
+test.describe('poster hover effect (desktop)', () => {
+  test.use({ viewport: { width: 1280, height: 800 } });
+  // Tailwind v4 zooms with the CSS `scale` property.
+  const scaleOf = (el: Element) => { const v = getComputedStyle(el).scale; return v === 'none' ? 1 : Number(v.split(' ')[0]); };
+
+  test('lifts the hovered poster, dims the rest of the row, and is not clipped at the edge', async ({ page }) => {
+    await page.goto('/');
+    const cards = rows(page).first().locator(':scope > div > div.group');
+    await cards.first().hover();
+    await page.waitForTimeout(100); // mid-transition: it animates rather than jumping
+    const midway = await cards.first().evaluate(scaleOf);
+    expect(midway).toBeGreaterThan(1);
+    expect(midway).toBeLessThan(1.06);
+    await page.waitForTimeout(400);
+    expect(await cards.first().evaluate(scaleOf)).toBeGreaterThan(1.05);
+    expect(await cards.nth(1).evaluate((el) => Number(getComputedStyle(el).opacity))).toBeLessThan(0.8);
+
+    // The lifted edge poster fits inside the row's visible box (not clipped by the scroller).
+    const [card, row] = await Promise.all([cards.first().boundingBox(), rows(page).first().boundingBox()]);
+    expect(card!.x).toBeGreaterThanOrEqual(row!.x);
+    expect(card!.y).toBeGreaterThanOrEqual(row!.y);
+  });
+
+  test('stays still for people who prefer reduced motion', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.goto('/');
+    const card = rows(page).first().locator(':scope > div > div.group').first();
+    await card.hover();
+    await page.waitForTimeout(450);
+    expect(await card.evaluate(scaleOf)).toBe(1);
+  });
+});
