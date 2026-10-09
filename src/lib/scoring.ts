@@ -23,6 +23,11 @@ export const CLASSIC_MIN_AGE = 25;
 /** "Recent" = released within this many months. */
 export const RECENT_MAX_MONTHS = 36;
 
+// --- "Fun": well-known, enjoyable films that just miss the quality bar (Rush Hour 2, Demolition Man). ---
+export const FUN_MIN_VOTES = 2500; // well-known only, so obscure filler can't get in
+export const FUN_MIN_AGE = 10;
+export const FUN_MIN_RATING = 6.0;
+
 /** Nothing older than this shows anywhere (viewing preference). */
 export const MIN_YEAR = 1970;
 
@@ -137,4 +142,11 @@ export function medianForAge(medians: Map<string, number>, age: number): number 
   }
   const vals = [...medians.values()];
   return vals.length ? vals[vals.length - 1] : BAND_T_ABS;
+}
+
+/** Belongs in "Fun": familiar and decent, but below the main quality bar. */
+export function isFun(m: Scorable): boolean {
+  if (m.voteAverage == null || m.voteCount == null) return false;
+  const age = ageOf(m.releaseDate);
+  return age != null && age >= FUN_MIN_AGE && m.voteCount >= FUN_MIN_VOTES && m.voteAverage >= FUN_MIN_RATING && !passesGate(m);
 }

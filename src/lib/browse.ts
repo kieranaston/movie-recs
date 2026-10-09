@@ -193,7 +193,7 @@ const isRecent = (m: CatalogMovie) => {
 // The first screen of each row shows distinct films, claimed in this order. Hidden Gems only takes
 // genuinely underseen films, so claiming before Top Rated keeps it stocked in small genres while
 // well-known greats (which Top Rated ranks first anyway) still land in Top Rated.
-const PRIORITY: SectionId[] = ['recent', 'classics', 'hidden_gems', 'top_rated', 'popular'];
+const PRIORITY: SectionId[] = ['recent', 'classics', 'hidden_gems', 'top_rated', 'fun', 'popular'];
 
 /** Cards per row on first load, and per "load more" page. */
 export const SECTION_CARDS = 20;
@@ -233,6 +233,7 @@ async function compute(genreId?: number, filter?: GenreFilter) {
     classics: sortBy(strict.filter((m) => (m.age as number) >= S.CLASSIC_MIN_AGE), (m) => m.wr),
     hidden_gems: sortBy(strict.filter(underseen), gemScore),
     top_rated: sortBy(strict, (m) => m.settled),
+    fun: sortBy(base.filter(S.isFun), (m) => m.wr),
     popular: sortBy(strict, (m) => m.voteCount),
   };
 

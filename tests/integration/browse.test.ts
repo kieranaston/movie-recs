@@ -155,3 +155,18 @@ describe('row rules', () => {
     expect((await getBrowsePage({ genreId: 16, limit: 100 })).sections.flatMap(titles)).toContain('Anime Film');
   });
 });
+
+describe('Fun row', () => {
+  it('holds well-known, decent films that miss the quality bar — not obscure or poor ones', async () => {
+    await seed([
+      { title: 'Crowd-Pleaser', votes: 6_000, avg: 6.6, year: 2001 },
+      { title: 'Acclaimed', votes: 6_000, avg: 8.4, year: 2001 },
+      { title: 'Obscure Filler', votes: 400, avg: 6.6, year: 2001 },
+      { title: 'Just Bad', votes: 6_000, avg: 5.2, year: 2001 },
+      { title: 'Too New', votes: 6_000, avg: 6.6, year: new Date().getFullYear() - 3 },
+    ]);
+    const page = await getBrowsePage({ genreId: 28, limit: 100 });
+    expect(titles(page.sections.find((s) => s.id === 'fun'))).toEqual(['Crowd-Pleaser']);
+  });
+});
+
