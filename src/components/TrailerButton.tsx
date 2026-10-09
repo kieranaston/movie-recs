@@ -1,10 +1,18 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Play } from 'lucide-react';
 
 export function TrailerButton({ youtubeKey, title }: { youtubeKey: string; title: string }) {
   const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [open]);
+
   return (
     <>
       <button
@@ -18,6 +26,7 @@ export function TrailerButton({ youtubeKey, title }: { youtubeKey: string; title
       {open && (
         <div
           className="fixed inset-0 z-[60] bg-black/85 flex items-center justify-center p-4"
+          data-trailer-open // lets the movie popup leave Escape to the trailer
           onClick={() => setOpen(false)}
           role="dialog"
           aria-modal="true"

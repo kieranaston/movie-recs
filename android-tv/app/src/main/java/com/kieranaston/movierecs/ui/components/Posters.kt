@@ -1,5 +1,7 @@
 package com.kieranaston.movierecs.ui.components
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -34,12 +36,14 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.Border
+import androidx.tv.material3.Glow
 import androidx.tv.material3.Card
 import androidx.tv.material3.CardDefaults
 import androidx.tv.material3.Icon
@@ -121,6 +125,8 @@ fun PosterCard(
             shape = CardDefaults.shape(PosterShape),
             scale = CardDefaults.scale(focusedScale = Motion.PosterFocusScale),
             border = CardDefaults.border(focusedBorder = Border(BorderStroke(Dimens.FocusBorderWidth, Palette.FocusBorder), shape = PosterShape)),
+            // A soft shadow lifts the focused poster off the row (drawn by the platform's shadow renderer).
+            glow = CardDefaults.glow(focusedGlow = Glow(elevationColor = Color.Black.copy(alpha = 0.7f), elevation = Dimens.FocusGlow)),
         ) {
             val url = TmdbImages.poster(movie.posterPath)
             if (url != null) {
@@ -131,10 +137,15 @@ fun PosterCard(
                 }
             }
         }
+        val titleColor by animateColorAsState(
+            if (focused) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+            animationSpec = tween(Motion.FocusFadeMillis),
+            label = "posterTitle",
+        )
         Text(
             movie.title,
             style = MaterialTheme.typography.labelLarge,
-            color = if (focused) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+            color = titleColor,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.padding(top = 12.dp),

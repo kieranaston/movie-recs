@@ -41,6 +41,7 @@ object Dimens {
     val CornerRadius = 8.dp      // poster corners
     val TileHeight = 88.dp       // genre tiles
     val FocusBorderWidth = 3.dp
+    val FocusGlow = 16.dp        // shadow under the focused poster
 }
 
 /** Focus feedback. */
@@ -48,6 +49,7 @@ object Motion {
     const val PosterFocusScale = 1.08f
     const val TileFocusScale = 1.05f
     const val ScreenFadeMillis = 200
+    const val FocusFadeMillis = 200   // title colour fade when a poster gains/loses focus
 }
 
 /**

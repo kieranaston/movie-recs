@@ -14,15 +14,15 @@ export default async function WatchlistPage() {
   const items = await getWatchlist(viewer.id);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-      <h1 className="text-2xl font-bold text-white mb-6">Watchlist</h1>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-6">
+      <h1 className="sr-only">Watchlist</h1>
       {items.length === 0 ? (
         <p className="text-gray-400">Nothing saved yet — tap the bookmark on any film to add it.</p>
       ) : (
         <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-7 gap-3">
           {items.map((m) => (
             <div key={m.id} className="group relative">
-              <Link href={`/movie/${m.tmdbId}`} className="block">
+              <Link href={`/movie/${m.tmdbId}`} scroll={false} className="block">
                 <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-gray-800">
                   <Image
                     src={getPosterUrl(m.posterPath, 'w342')}
