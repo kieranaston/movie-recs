@@ -1,4 +1,5 @@
-const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
+// Overridable so end-to-end tests can point at a local fake.
+const TMDB_BASE_URL = process.env.TMDB_BASE_URL || 'https://api.themoviedb.org/3';
 const TMDB_IMAGE_BASE_URL = 'https://image.tmdb.org/t/p';
 
 export interface TMDBMovie {
@@ -46,6 +47,21 @@ export interface TMDBMovieDetail extends TMDBMovie {
   spoken_languages: Array<{ english_name: string; iso_639_1: string; name: string }>;
   videos?: { results: TMDBVideo[] };
   'watch/providers'?: { results: TMDBWatchProvidersResponse['results'] };
+  credits?: { cast: TMDBCastMember[]; crew: TMDBCrewMember[] };
+}
+
+export interface TMDBCastMember {
+  id: number;
+  name: string;
+  character: string;
+  profile_path: string | null;
+  order: number;
+}
+
+export interface TMDBCrewMember {
+  id: number;
+  name: string;
+  job: string;
 }
 
 export interface TMDBWatchProvider {
@@ -119,7 +135,7 @@ export async function searchMovies(query: string, page = 1): Promise<TMDBSearchR
 }
 
 export async function getMovieDetail(movieId: number): Promise<TMDBMovieDetail> {
-  return fetchTMDB<TMDBMovieDetail>(`/movie/${movieId}`, { append_to_response: 'watch/providers,videos' });
+  return fetchTMDB<TMDBMovieDetail>(`/movie/${movieId}`, { append_to_response: 'watch/providers,videos,credits' });
 }
 
 /** Best available YouTube trailer/teaser key, or null. */
@@ -135,6 +151,11 @@ export function getTrailerKey(movie: TMDBMovieDetail): string | null {
 
 export async function getGenres(): Promise<TMDBGenresResponse> {
   return fetchTMDB<TMDBGenresResponse>('/genre/movie/list');
+}
+
+/** Actor headshot, or null when TMDB has none. */
+export function getProfileUrl(profilePath: string | null, size: 'w185' | 'h632' = 'w185'): string | null {
+  return profilePath ? `${TMDB_IMAGE_BASE_URL}/${size}${profilePath}` : null;
 }
 
 export function getPosterUrl(posterPath: string | null, size: 'w185' | 'w342' | 'w500' | 'w780' | 'original' = 'w342'): string {

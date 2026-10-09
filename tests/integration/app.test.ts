@@ -87,3 +87,18 @@ describe('claimLegacyWatchlist', () => {
     await expect(claimLegacyWatchlist('nobody@example.com')).rejects.toThrow('No account');
   });
 });
+
+describe('session renewal', () => {
+  it('keeps a day-old session signed in when it is renewed', async () => {
+    const { auth } = await import('@/lib/auth');
+    const { token, sessionId } = await createUserWithSession('alice@example.com');
+    // Signed in two days ago: due for renewal (renewed at most once a day).
+    await db.update(session).set({ expiresAt: new Date(Date.now() + 28 * 86_400_000) }).where(eq(session.id, sessionId));
+    const headers = new Headers({ authorization: `Bearer ${token}` });
+
+    expect((await auth.api.getSession({ headers }))?.user.email).toBe('alice@example.com');
+    const [renewed] = await db.select().from(session).where(eq(session.id, sessionId));
+    expect(renewed.expiresAt.getTime()).toBeGreaterThan(Date.now() + 29 * 86_400_000);
+    expect((await auth.api.getSession({ headers }))?.user.email).toBe('alice@example.com');
+  });
+});

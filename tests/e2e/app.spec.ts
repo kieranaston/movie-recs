@@ -5,6 +5,13 @@ import { expect, test, type APIRequestContext } from '@playwright/test';
 const tokens = () => JSON.parse(readFileSync(path.join(__dirname, '.fixtures.json'), 'utf8')) as { alice: string; bob: string };
 const bearer = (token: string) => ({ Authorization: `Bearer ${token}` });
 
+/** Better Auth's signed session cookie value: `token.HMAC-SHA256(token)` with the e2e secret. */
+async function signedSessionCookie(token: string) {
+  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode('e2e-secret-e2e-secret-e2e-secret-e2e-secret'), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const sig = Buffer.from(await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(token))).toString('base64');
+  return encodeURIComponent(`${token}.${sig}`);
+}
+
 test.describe('signed out', () => {
   test('browses the catalog without watchlist controls', async ({ page }) => {
     await page.goto('/');
@@ -145,5 +152,52 @@ test.describe('TV sign-in', () => {
     await page.getByRole('button', { name: 'Continue' }).click();
     await expect(page.getByRole('button', { name: 'Approve' })).toBeVisible();
     await phone.close();
+  });
+});
+
+test.describe('movie page', () => {
+  test('lists the cast and director', async ({ page }) => {
+    await page.goto('/movie/155');
+    const cast = page.getByRole('region', { name: 'Cast' });
+    await expect(cast.getByText('Christian Bale')).toBeVisible();
+    await expect(cast.getByText('Joker')).toBeVisible();
+    await expect(page.getByText('Directed by')).toContainText('Christopher Nolan');
+  });
+
+  test('signed out: offers sign-in instead of the watchlist button', async ({ page }) => {
+    await page.goto('/movie/155');
+    await expect(page.getByRole('link', { name: 'Sign in to save' })).toHaveAttribute('href', '/login?next=%2Fmovie%2F155');
+    await expect(page.getByRole('button', { name: 'Add to watchlist' })).toHaveCount(0);
+  });
+
+  test('signed in: adds to and removes from the watchlist', async ({ browser, request }) => {
+    // A real browser session cookie (as after Google sign-in), so server actions behave as they do for users.
+    const context = await browser.newContext();
+    await context.addCookies([{ name: '__Secure-better-auth.session_token', value: await signedSessionCookie(tokens().alice), domain: 'localhost', path: '/', secure: true, httpOnly: true, sameSite: 'Lax' }]);
+    const page = await context.newPage();
+    const ids = async () => {
+      const res = await request.get('/api/v1/watchlist', { headers: bearer(tokens().alice) });
+      expect(res.status(), await res.text()).toBe(200);
+      return ((await res.json()) as { movies: { tmdbId: number }[] }).movies.map((m) => m.tmdbId);
+    };
+
+    await page.goto('/movie/27205');
+    const add = page.getByRole('button', { name: 'Add to watchlist' });
+    await expect(add).toHaveText('Add to Watchlist');
+    // Wait for each save to finish before checking (the test database serves one query at a time).
+    const saved = () => page.waitForResponse((r) => r.request().method() === 'POST' && r.ok());
+    let done = saved();
+    await add.click();
+    const remove = page.getByRole('button', { name: 'Remove from watchlist' });
+    await expect(remove).toHaveText('In Watchlist');
+    await done;
+    expect(await ids()).toContain(27205);
+
+    done = saved();
+    await remove.click();
+    await expect(page.getByRole('button', { name: 'Add to watchlist' })).toHaveText('Add to Watchlist');
+    await done;
+    expect(await ids()).not.toContain(27205);
+    await context.close();
   });
 });
