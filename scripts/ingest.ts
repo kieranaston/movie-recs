@@ -116,7 +116,7 @@ const GENRE_VOTE_PAGES = argVal('--genre-vote-pages', 10);
 const FACET_KEYWORDS = [
   'found footage', 'slasher', 'psychological horror', 'supernatural', 'superhero',
   'dystopia', 'space', 'cyberpunk', 'serial killer', 'dark comedy',
-  'based on true story', 'psychological thriller',
+  'psychological thriller',
 ];
 
 async function buildSlices(): Promise<{ label: string; params: Record<string, string | number>; pages: number }[]> {

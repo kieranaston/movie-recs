@@ -153,9 +153,19 @@ const GHIBLI_COMPANY = 10342; // Studio Ghibli
 const isAnime = (m: CatalogMovie) => m.genreTmdbIds.includes(ANIMATION_GENRE) && m.originalLanguage === 'ja';
 const isGhibli = (m: CatalogMovie) => m.companyTmdbIds.includes(GHIBLI_COMPANY);
 
-const PRIORITY: SectionId[] = ['recent', 'classics', 'hidden_gems', 'cult', 'top_rated', 'popular'];
+// The first screen of each row shows distinct films, claimed in this order. Hidden Gems only takes
+// genuinely underseen films, so claiming before Top Rated keeps it stocked in small genres while
+// well-known greats (which Top Rated ranks first anyway) still land in Top Rated.
+const PRIORITY: SectionId[] = ['recent', 'classics', 'hidden_gems', 'top_rated', 'cult', 'popular'];
 
-/** Build every section's full, deduped candidate list (uncapped — callers slice it). */
+/** Cards per row on first load, and per "load more" page. */
+export const SECTION_CARDS = 20;
+const SECTION_PAGE = 20;
+
+/**
+ * Build every row's full ranked list. Rows are unlimited (they scroll through everything that fits
+ * the lens, so no eligible film is unreachable); only the first screen is kept free of repeats.
+ */
 async function compute(genreId?: number, filter?: GenreFilter) {
   const catalog = await getCatalog();
   const target = filter ? await resolveFilterTarget(filter) : [];
@@ -174,34 +184,35 @@ async function compute(genreId?: number, filter?: GenreFilter) {
 
   const strict = base.filter((m) => S.passesGate(m));
   const medians = S.computeEraMedians(strict.map((m) => ({ age: m.age as number, votes: m.voteCount })));
-  const gemScore = (m: ScoredMovie) =>
-    m.settled * S.obscurity(m.voteCount, S.eraTarget(S.medianForAge(medians, m.age as number)));
+  const voteTarget = (m: ScoredMovie) => S.eraTarget(S.medianForAge(medians, m.age as number));
+  const gemScore = (m: ScoredMovie) => m.settled * S.obscurity(m.voteCount, voteTarget(m));
+  // "Underseen": fewer votes than is typical for a well-regarded film of its age.
+  const underseen = (m: ScoredMovie) => m.voteCount < voteTarget(m);
 
   const sortBy = (rows: ScoredMovie[], key: (m: ScoredMovie) => number) => [...rows].sort((a, b) => key(b) - key(a));
 
   const cand: Record<SectionId, ScoredMovie[]> = {
     recent: sortBy(strict.filter((m) => (m.age as number) <= S.RECENT_MAX_AGE), (m) => m.settled),
     classics: sortBy(strict.filter((m) => (m.age as number) >= S.CLASSIC_MIN_AGE), (m) => m.wr),
-    hidden_gems: sortBy(strict, gemScore),
+    hidden_gems: sortBy(strict.filter(underseen), gemScore),
     cult: sortBy(base.filter((m) => S.passesCultGate(m) && !S.passesGate(m)), (m) => m.wr),
     top_rated: sortBy(strict, (m) => m.settled),
     popular: sortBy(strict, (m) => m.voteCount),
   };
 
-  // Each film appears in only one row per page: specific sections claim first.
-  // Cap each section's claims so a broad section can't starve the later ones.
-  const SECTION_MAX = 300;
+  // First screen: distinct films across rows, claimed in PRIORITY order.
   const used = new Set<number>();
+  const head = {} as Record<SectionId, ScoredMovie[]>;
+  for (const id of PRIORITY) {
+    head[id] = cand[id].filter((m) => !used.has(m.id)).slice(0, SECTION_CARDS);
+    for (const m of head[id]) used.add(m.id);
+  }
+  // A row whose first screen is full continues through its whole ranking (repeats allowed past it).
+  // A shorter row just ends: it only runs short when everything that fits it is already on the page.
   const full = {} as Record<SectionId, ScoredMovie[]>;
   for (const id of PRIORITY) {
-    const list: ScoredMovie[] = [];
-    for (const m of cand[id]) {
-      if (used.has(m.id)) continue;
-      used.add(m.id);
-      list.push(m);
-      if (list.length >= SECTION_MAX) break;
-    }
-    full[id] = list;
+    const inHead = new Set(head[id].map((m) => m.id));
+    full[id] = head[id].length < SECTION_CARDS ? head[id] : [...head[id], ...cand[id].filter((m) => !inHead.has(m.id))];
   }
 
   const matched = new Map<number, ScoredMovie>();
@@ -211,9 +222,6 @@ async function compute(genreId?: number, filter?: GenreFilter) {
   return { full, matched };
 }
 
-/** Cards rendered per section before any "load more". */
-export const SECTION_CARDS = 20;
-const SECTION_PAGE = 20;
 
 export interface BrowseResult {
   mode: 'sections' | 'list';
