@@ -16,7 +16,9 @@ function connect() {
 }
 
 type Database = ReturnType<typeof connect>;
-let instance: Database | undefined;
+// Next bundles route handlers, pages and server actions separately, each with its own copy of this
+// module. One pool per process (on globalThis) keeps them from each opening their own connections.
+const shared = globalThis as typeof globalThis & { movieRecsDb?: Database };
 
 /**
  * The database, connected on first use. `next build` imports every route but never queries,
@@ -24,7 +26,7 @@ let instance: Database | undefined;
  */
 export const db = new Proxy({} as Database, {
   get(_target, prop) {
-    instance ??= connect();
+    const instance = (shared.movieRecsDb ??= connect());
     const value = Reflect.get(instance, prop, instance);
     return typeof value === 'function' ? value.bind(instance) : value;
   },
