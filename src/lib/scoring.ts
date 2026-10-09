@@ -53,9 +53,36 @@ export function yearInRange(releaseDate: string | null): boolean {
   return y != null && y >= MIN_YEAR;
 }
 
-/** Bayesian weighted rating. */
-export function wr(avg: number, votes: number): number {
-  return (votes / (votes + M)) * avg + (M / (votes + M)) * C;
+// --- new releases: early votes skew high (fans vote first), so young films get a stronger prior. ---
+export const NEW_RELEASE_MONTHS = 18;
+export const NEW_RELEASE_PRIOR_BOOST = 4; // prior weight is (1 + 4)× M at release, easing to 1× at 18 months
+
+/** Whole months since release (negative for unreleased), or null if unknown. */
+export function monthsSince(releaseDate: string | null, now: Date = new Date()): number | null {
+  if (!releaseDate) return null;
+  const d = new Date(`${releaseDate.slice(0, 10)}T00:00:00Z`);
+  if (Number.isNaN(d.getTime())) return null;
+  return (now.getUTCFullYear() - d.getUTCFullYear()) * 12 + (now.getUTCMonth() - d.getUTCMonth());
+}
+
+/** Prior weight (in votes) pulling a rating toward C: M, boosted while a film is new. */
+export function priorWeight(releaseDate: string | null | undefined, now: Date = new Date()): number {
+  const months = releaseDate ? monthsSince(releaseDate, now) : null;
+  if (months == null || months >= NEW_RELEASE_MONTHS) return M;
+  const freshness = 1 - Math.max(months, 0) / NEW_RELEASE_MONTHS; // 1 at release → 0 at 18 months
+  return M * (1 + NEW_RELEASE_PRIOR_BOOST * freshness);
+}
+
+const shrink = (avg: number, votes: number, m: number) => (votes / (votes + m)) * avg + (m / (votes + m)) * C;
+
+/**
+ * Bayesian weighted rating. Pass the release date so new releases get the stronger prior — which may
+ * only lower a rating (tempering early fan scores), never lift a weak new film toward C.
+ */
+export function wr(avg: number, votes: number, releaseDate?: string | null, now?: Date): number {
+  const standard = shrink(avg, votes, M);
+  const m = priorWeight(releaseDate, now);
+  return m === M ? standard : Math.min(standard, shrink(avg, votes, m));
 }
 
 /** WR with a vote-count confidence penalty — used by consensus lenses. */
@@ -79,7 +106,7 @@ export function obscurity(votes: number, target: number): number {
 export function passesGate(m: Scorable): boolean {
   if (m.voteAverage == null || m.voteCount == null) return false;
   if (m.voteCount < GATE_VOTES) return false;
-  if (wr(m.voteAverage, m.voteCount) < GATE_WR) return false;
+  if (wr(m.voteAverage, m.voteCount, m.releaseDate) < GATE_WR) return false;
   return true;
 }
 
@@ -99,7 +126,7 @@ export function passesCultGate(m: Scorable): boolean {
   if (m.voteCount < CULT_VOTES) return false;
   const age = ageOf(m.releaseDate);
   if (age == null || age < CULT_MIN_AGE) return false;
-  if (wr(m.voteAverage, m.voteCount) < cultWrFloor(age)) return false;
+  if (wr(m.voteAverage, m.voteCount, m.releaseDate) < cultWrFloor(age)) return false;
   return true;
 }
 

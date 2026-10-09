@@ -104,14 +104,18 @@ async function ingestGenres() {
 const SLICES: { label: string; params: Record<string, string | number>; pages: number }[] = [
   { label: 'vote_average.desc', params: { sort_by: 'vote_average.desc', 'vote_count.gte': 200 }, pages: 20 },
   { label: 'vote_count.desc', params: { sort_by: 'vote_count.desc' }, pages: 12 },
+  // Well-established acclaim: catches well-loved films (e.g. Paddington 2) that rank below the
+  // overall top-rated cut but aren't among the most-voted either.
+  { label: 'acclaimed', params: { sort_by: 'vote_average.desc', 'vote_count.gte': 1500 }, pages: 50 },
   { label: 'popularity.desc', params: { sort_by: 'popularity.desc' }, pages: 10 },
   { label: 'release.desc', params: { sort_by: 'primary_release_date.desc', 'vote_count.gte': 200 }, pages: 12 },
 ];
 
 // Per-genre + facet-keyword slices so every genre/filter has breadth, not just
 // the highest-rated films.
-const GENRE_IDS = [28, 12, 16, 35, 80, 99, 18, 10751, 14, 36, 27, 10402, 9648, 10749, 878, 10770, 53, 10752, 37];
-const GENRE_PAGES = argVal('--genre-pages', 8);
+// TMDB genres to pull (TV Movie, 10770, is deliberately excluded).
+const GENRE_IDS = [28, 12, 16, 35, 80, 99, 18, 10751, 14, 36, 27, 10402, 9648, 10749, 878, 53, 10752, 37];
+const GENRE_PAGES = argVal('--genre-pages', 15);
 const GENRE_VOTE_PAGES = argVal('--genre-vote-pages', 10);
 const FACET_KEYWORDS = [
   'found footage', 'slasher', 'psychological horror', 'supernatural', 'superhero',
@@ -238,6 +242,7 @@ async function ingestMetadata() {
   const todo = await db.execute<{ id: number; tmdb_id: number }>(sql`
     select m.id, m.tmdb_id from ${movies} m
     where m.metadata_fetched_at is null
+       or m.runtime is null -- one-time backfill: runtime/IMDb id weren't stored before
     order by m.vote_count desc nulls last
     ${METADATA_LIMIT ? sql`limit ${METADATA_LIMIT}` : sql``}
   `);
@@ -251,6 +256,7 @@ async function ingestMetadata() {
     const kwMap = new Map<number, string>();
     const coMap = new Map<number, TMDBMovieDetail['production_companies'][number]>();
     const perMovie: { movieId: number; keywordIds: number[]; companyIds: number[] }[] = [];
+    const details: { movieId: number; runtime: number; imdbId: string | null }[] = [];
 
     const results = await mapLimit(batch, 8, async (r) => ({
       r, det: await tmdbGet<MovieWithKeywords>(`/movie/${r.tmdb_id}`, { append_to_response: 'keywords' }),
@@ -265,6 +271,7 @@ async function ingestMetadata() {
         keywordIds: kws.map((k) => k.id),
         companyIds: cos.map((c) => c.id),
       });
+      details.push({ movieId: r.id, runtime: det.runtime ?? 0, imdbId: det.imdb_id ?? null }); // 0 = unknown
     }
 
     if (kwMap.size) {
@@ -314,6 +321,15 @@ async function ingestMetadata() {
     if (coRels.length) await db.insert(movieCompanies).values(coRels);
 
     await db.update(movies).set({ metadataFetchedAt: new Date() }).where(inArray(movies.id, movieIds));
+    if (details.length) {
+      // One statement per batch: update ... from (values ...).
+      const values = sql.join(details.map((d) => sql`(${d.movieId}::int, ${d.runtime}::int, ${d.imdbId}::varchar)`), sql`, `);
+      await db.execute(sql`
+        update ${movies} set runtime = v.runtime, imdb_id = v.imdb_id
+        from (values ${values}) as v(id, runtime, imdb_id)
+        where ${movies.id} = v.id
+      `);
+    }
     console.log(`[metadata] ${Math.min(start + BATCH, rows.length)}/${rows.length} (kw ${kwRels.length}, co ${coRels.length})`);
   }
 }

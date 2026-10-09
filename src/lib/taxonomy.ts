@@ -14,7 +14,7 @@ export interface GenreFilter {
   value: string | string[];
 }
 
-export type SectionId = 'top_rated' | 'hidden_gems' | 'cult' | 'classics' | 'recent' | 'popular';
+export type SectionId = 'top_rated' | 'hidden_gems' | 'under_radar' | 'classics' | 'recent' | 'popular';
 
 export interface GenrePage {
   slug: string;
@@ -26,7 +26,7 @@ export interface GenrePage {
 export const SECTIONS: { id: SectionId; label: string; blurb: string }[] = [
   { id: 'top_rated', label: 'Top Rated', blurb: 'Best reviews overall' },
   { id: 'hidden_gems', label: 'Hidden Gems', blurb: 'Underseen but loved' },
-  { id: 'cult', label: 'Cult', blurb: 'Devoted followings the gate would hide' },
+  { id: 'under_radar', label: 'Under the Radar', blurb: 'Older films with a following that just miss the main lists' },
   { id: 'classics', label: 'Classics', blurb: '30+ years of staying power' },
   { id: 'recent', label: 'Recent', blurb: 'The last few years' },
   { id: 'popular', label: 'Popular', blurb: 'Most watched' },
