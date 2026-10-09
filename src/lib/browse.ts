@@ -1,6 +1,6 @@
 import { cache } from 'react';
 import { unstable_cache } from 'next/cache';
-import { eq, inArray } from 'drizzle-orm';
+import { eq, inArray, or } from 'drizzle-orm';
 import { db } from '@/db';
 import {
   genres,
@@ -12,7 +12,7 @@ import {
   productionCompanies,
 } from '@/db/schema';
 import * as S from './scoring';
-import { GenreFilter, SECTIONS, SectionId } from './taxonomy';
+import { GENRE_PAGES, GenreFilter, SECTIONS, SectionId } from './taxonomy';
 
 export interface CatalogMovie {
   id: number;
@@ -22,11 +22,10 @@ export interface CatalogMovie {
   year: number | null;
   voteAverage: number;
   voteCount: number;
-  popularity: number;
   posterPath: string | null;
-  backdropPath: string | null;
   originalLanguage: string | null;
   genreTmdbIds: number[];
+  /** Only the keywords/companies some rule or filter uses (keeps the cached catalog small). */
   keywordTmdbIds: number[];
   companyTmdbIds: number[];
   available: boolean;
@@ -89,23 +88,46 @@ export function qualityRating(tmdb: number, imdb: number | null | undefined, imd
   return imdb != null && (imdbVotes ?? 0) >= IMDB_MIN_VOTES ? imdb : tmdb;
 }
 
+const TV_MOVIE_GENRE = 10770;
+const MIN_RUNTIME = 60; // minutes; shorts and specials are hidden (unknown runtime is allowed)
+/** Feature films only: no TV movies, no shorts. */
+const isFeature = (m: CatalogMovie) => !m.genreTmdbIds.includes(TV_MOVIE_GENRE) && !(m.runtime && m.runtime < MIN_RUNTIME);
+const DOCUMENTARY_GENRE = 99;
+// TMDB keyword ids. Specials of any kind; reunions only when they're documentaries (fiction films
+// about a reunion, e.g. Coherence, stay).
+const SPECIAL_KEYWORDS = [264598 /* tv special */, 255088 /* christmas special */, 362573 /* comedy special */, 9716 /* stand-up comedy */];
+const REUNION_KEYWORD = 9824;
+const isSpecial = (m: CatalogMovie) =>
+  SPECIAL_KEYWORDS.some((k) => m.keywordTmdbIds.includes(k)) ||
+  (m.keywordTmdbIds.includes(REUNION_KEYWORD) && m.genreTmdbIds.includes(DOCUMENTARY_GENRE));
+
+// Keywords/companies referenced by genre-page filters or the rules above. The catalog only carries
+// these: all tags would push it past Next's 2 MB cache-item limit.
+const filterValues = (kind: GenreFilter['kind']) =>
+  GENRE_PAGES.flatMap((g) => g.filters).filter((f) => f.kind === kind).flatMap((f) => (Array.isArray(f.value) ? f.value : [f.value]));
+const USED_KEYWORD_NAMES = [...new Set(filterValues('keyword'))];
+const USED_KEYWORD_IDS = [...SPECIAL_KEYWORDS, REUNION_KEYWORD];
+const USED_COMPANY_NAMES = [...new Set(filterValues('company'))];
+
 /** Whole catalog, cached across requests (it only changes on ingest). */
 const loadCatalog = unstable_cache(
   async (): Promise<CatalogMovie[]> => {
     const [mRows, gRows, kRows, cRows] = await Promise.all([
       db.select({
         id: movies.id, tmdbId: movies.tmdbId, title: movies.title, releaseDate: movies.releaseDate,
-        voteAverage: movies.voteAverage, voteCount: movies.voteCount, popularity: movies.popularity,
-        posterPath: movies.posterPath, backdropPath: movies.backdropPath, originalLanguage: movies.originalLanguage,
+        voteAverage: movies.voteAverage, voteCount: movies.voteCount,
+        posterPath: movies.posterPath, originalLanguage: movies.originalLanguage,
         availableAnywhere: movies.availableAnywhere, runtime: movies.runtime,
         imdbRating: movies.imdbRating, imdbVotes: movies.imdbVotes,
       }).from(movies),
       db.select({ movieId: movieGenres.movieId, tmdbId: genres.tmdbId })
         .from(movieGenres).innerJoin(genres, eq(genres.id, movieGenres.genreId)),
       db.select({ movieId: movieKeywords.movieId, tmdbId: keywords.tmdbId })
-        .from(movieKeywords).innerJoin(keywords, eq(keywords.id, movieKeywords.keywordId)),
+        .from(movieKeywords).innerJoin(keywords, eq(keywords.id, movieKeywords.keywordId))
+        .where(or(inArray(keywords.name, USED_KEYWORD_NAMES), inArray(keywords.tmdbId, USED_KEYWORD_IDS))),
       db.select({ movieId: movieCompanies.movieId, tmdbId: productionCompanies.tmdbId })
-        .from(movieCompanies).innerJoin(productionCompanies, eq(productionCompanies.id, movieCompanies.companyId)),
+        .from(movieCompanies).innerJoin(productionCompanies, eq(productionCompanies.id, movieCompanies.companyId))
+        .where(inArray(productionCompanies.name, USED_COMPANY_NAMES)),
     ]);
 
     const gMap = new Map<number, number[]>();
@@ -125,9 +147,7 @@ const loadCatalog = unstable_cache(
         year: S.yearOf(m.releaseDate),
         voteAverage: qualityRating(m.voteAverage as number, m.imdbRating, m.imdbVotes),
         voteCount: m.voteCount as number,
-        popularity: m.popularity ?? 0,
         posterPath: m.posterPath,
-        backdropPath: m.backdropPath,
         originalLanguage: m.originalLanguage,
         genreTmdbIds: gMap.get(m.id) ?? [],
         keywordTmdbIds: kMap.get(m.id) ?? [],
@@ -136,7 +156,7 @@ const loadCatalog = unstable_cache(
         runtime: m.runtime,
       }));
   },
-  ['catalog-v5'],
+  ['catalog-v6'],
   { revalidate: 3600, tags: ['catalog'] }
 );
 
@@ -163,19 +183,6 @@ function matchesFilter(m: CatalogMovie, filter: GenreFilter | undefined, target:
   if (filter.kind === 'keyword') return (target as number[]).some((id) => m.keywordTmdbIds.includes(id));
   return m.originalLanguage === target;
 }
-
-const TV_MOVIE_GENRE = 10770;
-const MIN_RUNTIME = 60; // minutes; shorts and specials are hidden (unknown runtime is allowed)
-/** Feature films only: no TV movies, no shorts. */
-const isFeature = (m: CatalogMovie) => !m.genreTmdbIds.includes(TV_MOVIE_GENRE) && !(m.runtime && m.runtime < MIN_RUNTIME);
-const DOCUMENTARY_GENRE = 99;
-// TMDB keyword ids. Specials of any kind; reunions only when they're documentaries (fiction films
-// about a reunion, e.g. Coherence, stay).
-const SPECIAL_KEYWORDS = [264598 /* tv special */, 255088 /* christmas special */, 362573 /* comedy special */, 9716 /* stand-up comedy */];
-const REUNION_KEYWORD = 9824;
-const isSpecial = (m: CatalogMovie) =>
-  SPECIAL_KEYWORDS.some((k) => m.keywordTmdbIds.includes(k)) ||
-  (m.keywordTmdbIds.includes(REUNION_KEYWORD) && m.genreTmdbIds.includes(DOCUMENTARY_GENRE));
 
 /** Released within the last RECENT_MAX_MONTHS (unreleased titles are already dropped as unavailable). */
 const isRecent = (m: CatalogMovie) => {
