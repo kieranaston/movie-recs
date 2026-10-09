@@ -153,7 +153,14 @@ const GHIBLI_COMPANY = 10342; // Studio Ghibli
 const isAnime = (m: CatalogMovie) => m.genreTmdbIds.includes(ANIMATION_GENRE) && m.originalLanguage === 'ja';
 const isGhibli = (m: CatalogMovie) => m.companyTmdbIds.includes(GHIBLI_COMPANY);
 
-const PRIORITY: SectionId[] = ['recent', 'classics', 'hidden_gems', 'cult', 'top_rated', 'popular'];
+// Rows claim films in this order (each film shows in one row per page). Hidden Gems only takes
+// genuinely underseen films, so claiming before Top Rated keeps it stocked in small genres while
+// well-known greats (which Top Rated ranks first anyway) still land in Top Rated.
+const PRIORITY: SectionId[] = ['recent', 'classics', 'hidden_gems', 'top_rated', 'cult', 'popular'];
+
+/** Max films per row: Home draws on the whole catalog; genre pages are smaller, so no row may swallow the rest. */
+const SECTION_MAX_HOME = 300;
+const SECTION_MAX_GENRE = 60;
 
 /** Build every section's full, deduped candidate list (uncapped — callers slice it). */
 async function compute(genreId?: number, filter?: GenreFilter) {
@@ -174,23 +181,24 @@ async function compute(genreId?: number, filter?: GenreFilter) {
 
   const strict = base.filter((m) => S.passesGate(m));
   const medians = S.computeEraMedians(strict.map((m) => ({ age: m.age as number, votes: m.voteCount })));
-  const gemScore = (m: ScoredMovie) =>
-    m.settled * S.obscurity(m.voteCount, S.eraTarget(S.medianForAge(medians, m.age as number)));
+  const voteTarget = (m: ScoredMovie) => S.eraTarget(S.medianForAge(medians, m.age as number));
+  const gemScore = (m: ScoredMovie) => m.settled * S.obscurity(m.voteCount, voteTarget(m));
+  // "Underseen": fewer votes than is typical for a well-regarded film of its age.
+  const underseen = (m: ScoredMovie) => m.voteCount < voteTarget(m);
 
   const sortBy = (rows: ScoredMovie[], key: (m: ScoredMovie) => number) => [...rows].sort((a, b) => key(b) - key(a));
 
   const cand: Record<SectionId, ScoredMovie[]> = {
     recent: sortBy(strict.filter((m) => (m.age as number) <= S.RECENT_MAX_AGE), (m) => m.settled),
     classics: sortBy(strict.filter((m) => (m.age as number) >= S.CLASSIC_MIN_AGE), (m) => m.wr),
-    hidden_gems: sortBy(strict, gemScore),
+    hidden_gems: sortBy(strict.filter(underseen), gemScore),
     cult: sortBy(base.filter((m) => S.passesCultGate(m) && !S.passesGate(m)), (m) => m.wr),
     top_rated: sortBy(strict, (m) => m.settled),
     popular: sortBy(strict, (m) => m.voteCount),
   };
 
-  // Each film appears in only one row per page: specific sections claim first.
-  // Cap each section's claims so a broad section can't starve the later ones.
-  const SECTION_MAX = 300;
+  // Each film appears in only one row per page, claimed in PRIORITY order and capped per row.
+  const SECTION_MAX = genreId == null && !filter ? SECTION_MAX_HOME : SECTION_MAX_GENRE;
   const used = new Set<number>();
   const full = {} as Record<SectionId, ScoredMovie[]>;
   for (const id of PRIORITY) {

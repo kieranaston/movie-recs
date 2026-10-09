@@ -53,9 +53,7 @@ export const GENRE_PAGES: GenrePage[] = [
     { label: 'Serial Killer', kind: 'keyword', value: 'serial killer' },
   ] },
   { slug: 'documentary', name: 'Documentary', tmdbId: 99, filters: [] },
-  { slug: 'drama', name: 'Drama', tmdbId: 18, filters: [
-    { label: 'Based on a True Story', kind: 'keyword', value: 'based on true story' },
-  ] },
+  { slug: 'drama', name: 'Drama', tmdbId: 18, filters: [] },
   { slug: 'fantasy', name: 'Fantasy', tmdbId: 14, filters: [] },
   { slug: 'horror', name: 'Horror', tmdbId: 27, filters: [
     { label: 'Supernatural', kind: 'keyword', value: 'supernatural' },
