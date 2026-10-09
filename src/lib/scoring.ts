@@ -28,6 +28,11 @@ export const FUN_MIN_VOTES = 2500; // well-known only, so obscure filler can't g
 export const FUN_MIN_AGE = 10;
 export const FUN_MIN_RATING = 6.0;
 
+// --- Subgenre pages (e.g. Horror → Found Footage): niches whose canon often sits just below the main
+// bar (Lake Mungo, The Blair Witch Project), so they take any decent, reasonably-known film. ---
+export const SUBGENRE_MIN_RATING = 6.0;
+export const SUBGENRE_MIN_VOTES = 500;
+
 /** Nothing older than this shows anywhere (viewing preference). */
 export const MIN_YEAR = 1970;
 
@@ -149,4 +154,11 @@ export function isFun(m: Scorable): boolean {
   if (m.voteAverage == null || m.voteCount == null) return false;
   const age = ageOf(m.releaseDate);
   return age != null && age >= FUN_MIN_AGE && m.voteCount >= FUN_MIN_VOTES && m.voteAverage >= FUN_MIN_RATING && !passesGate(m);
+}
+
+/** Good enough for a subgenre page: the main gate, or decent and reasonably well-known. */
+export function passesSubgenreBar(m: Scorable): boolean {
+  if (passesGate(m)) return true;
+  if (m.voteAverage == null || m.voteCount == null || m.voteCount < SUBGENRE_MIN_VOTES) return false;
+  return m.voteAverage >= SUBGENRE_MIN_RATING;
 }

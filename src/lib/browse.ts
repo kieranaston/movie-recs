@@ -252,8 +252,9 @@ async function compute(genreId?: number, filter?: GenreFilter) {
     full[id] = head[id].length < SECTION_CARDS ? head[id] : [...head[id], ...cand[id].filter((m) => !inHead.has(m.id))];
   }
 
+  // Subgenre pages list everything that clears the looser subgenre bar; otherwise just the gated films.
   const matched = new Map<number, ScoredMovie>();
-  for (const m of strict) matched.set(m.id, m);
+  for (const m of filter ? base.filter(S.passesSubgenreBar) : strict) matched.set(m.id, m);
 
   return { full, matched };
 }

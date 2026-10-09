@@ -66,10 +66,12 @@ export const GENRE_PAGES: GenrePage[] = [
     { label: 'Dystopia', kind: 'keyword', value: 'dystopia' },
     { label: 'Space', kind: 'keyword', value: 'space' },
     { label: 'Cyberpunk', kind: 'keyword', value: 'cyberpunk' },
+    { label: 'Found Footage', kind: 'keyword', value: 'found footage' }, // Cloverfield, Chronicle
   ] },
   { slug: 'thriller', name: 'Thriller', tmdbId: 53, filters: [
     { label: 'Psychological', kind: 'keyword', value: 'psychological thriller' },
     { label: 'Serial Killer', kind: 'keyword', value: 'serial killer' },
+    { label: 'Found Footage', kind: 'keyword', value: 'found footage' },
   ] },
   { slug: 'war', name: 'War', tmdbId: 10752, filters: [] },
   { slug: 'western', name: 'Western', tmdbId: 37, filters: [] },

@@ -170,3 +170,24 @@ describe('Fun row', () => {
   });
 });
 
+describe('subgenre pages', () => {
+  it('include decent niche films that miss the main bar, but not poor ones', async () => {
+    const [kw] = await db.insert(keywords).values({ tmdbId: 163053, name: 'found footage' }).returning();
+    await seed([
+      { title: 'Acclaimed Tape', votes: 6_000, avg: 7.6 },
+      { title: 'Cult Tape', votes: 800, avg: 6.2 }, // e.g. Lake Mungo
+      { title: 'Weak Tape', votes: 900, avg: 5.6 },
+      { title: 'Unknown Tape', votes: 120, avg: 6.8 },
+    ]);
+    const rows = await db.select().from(movies);
+    await db.insert(movieKeywords).values(rows.map((r) => ({ movieId: r.id, keywordId: kw.id })));
+
+    const filter = { label: 'Found Footage', kind: 'keyword' as const, value: 'found footage' };
+    const page = await getBrowsePage({ genreId: 28, filter, limit: 100 });
+    expect(page.movies.map((m) => m.title)).toEqual(['Acclaimed Tape', 'Cult Tape']);
+    // The genre's main rows keep the stricter bar.
+    const main = new Set((await getBrowsePage({ genreId: 28, limit: 100 })).sections.flatMap(titles));
+    expect(main.has('Cult Tape')).toBe(false);
+  });
+});
+
