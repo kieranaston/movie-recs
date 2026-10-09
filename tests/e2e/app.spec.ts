@@ -8,11 +8,13 @@ const bearer = (token: string) => ({ Authorization: `Bearer ${token}` });
 test.describe('signed out', () => {
   test('browses the catalog without watchlist controls', async ({ page }) => {
     await page.goto('/');
-    await expect(page.getByRole('heading', { name: 'Discover Movies' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Discover Movies' })).toBeAttached(); // for screen readers only
     await expect(page.getByText('The Dark Knight').first()).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Sign in' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Add to watchlist' })).toHaveCount(0);
-    await expect(page.getByRole('tab', { name: 'Watchlist' })).toHaveCount(0);
+    await page.getByRole('button', { name: 'Open menu' }).click();
+    const menu = page.getByRole('dialog', { name: 'Menu' });
+    await expect(menu.getByRole('link', { name: 'Sign in' })).toBeVisible();
+    await expect(menu.getByRole('link', { name: 'Watchlist' })).toHaveCount(0);
   });
 
   test('sends security headers', async ({ request }) => {
@@ -52,7 +54,9 @@ test.describe('signed in', () => {
     const page = await context.newPage();
 
     await page.goto('/');
-    await expect(page.getByRole('link', { name: /Account \(alice@example.com\)/ })).toBeVisible();
+    await page.getByRole('button', { name: 'Open menu' }).click();
+    await expect(page.getByRole('dialog', { name: 'Menu' }).getByRole('link', { name: /alice@example.com/ })).toBeVisible();
+    await page.keyboard.press('Escape');
     const card = page.locator('div.group', { hasText: 'Inception' }).first();
     await card.getByRole('button', { name: 'Add to watchlist' }).click();
     await expect(card.getByRole('button', { name: 'Remove from watchlist' })).toBeVisible();

@@ -38,8 +38,8 @@ export default async function GenrePage({
   const selected = genre.filters.find((f) => f.label === filter);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-      <h1 className="text-2xl font-bold text-white mb-4">{genre.name}</h1>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-6">
+      <h1 className="sr-only">{genre.name}</h1>
 
       {genre.filters.length > 0 && (
         <nav aria-label={`${genre.name} filters`} className="-mx-4 mb-6 overflow-x-auto px-4 [scrollbar-width:none] sm:mx-0 sm:px-0">

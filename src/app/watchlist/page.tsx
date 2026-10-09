@@ -14,8 +14,8 @@ export default async function WatchlistPage() {
   const items = await getWatchlist(viewer.id);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-      <h1 className="text-2xl font-bold text-white mb-6">Watchlist</h1>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-6">
+      <h1 className="sr-only">Watchlist</h1>
       {items.length === 0 ? (
         <p className="text-gray-400">Nothing saved yet — tap the bookmark on any film to add it.</p>
       ) : (

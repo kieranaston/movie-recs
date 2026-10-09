@@ -49,10 +49,21 @@ for (const [size, use] of [['desktop', { viewport: { width: 1280, height: 800 } 
 }
 
 test.describe('on a genre page', () => {
-  test('the drawer opens with that genre’s filters showing, current one marked', async ({ page }) => {
+  test('the drawer opens on the current page: filters showing, current one marked and in view', async ({ page }) => {
     await page.goto('/genre/horror?filter=Slasher');
     await openMenu(page);
-    await expect(drawer(page).getByRole('link', { name: 'Slasher' })).toHaveAttribute('aria-current', 'page');
+    const current = drawer(page).getByRole('link', { name: 'Slasher' });
+    await expect(current).toHaveAttribute('aria-current', 'page');
+    await expect(current).toBeFocused();
+    await expect(current).toBeInViewport();
+  });
+
+  test('pages have no header bar: content starts under the floating menu button', async ({ page }) => {
+    await page.goto('/');
+    await expect(page.locator('header')).toHaveCount(0);
+    const button = await page.getByRole('button', { name: 'Open menu' }).boundingBox();
+    const firstRow = await page.getByRole('heading', { name: 'Top Rated' }).boundingBox();
+    expect(firstRow!.y).toBeGreaterThan(button!.y + button!.height);
   });
 
   test('filters are also chips on the page', async ({ page }) => {
@@ -66,10 +77,12 @@ test.describe('on a genre page', () => {
 
 test.describe('search on a phone', () => {
   test.use(iPhone);
-  test('opens from the header', async ({ page }) => {
+  test('is at the top of the menu, without popping the keyboard on open', async ({ page }) => {
     await page.goto('/');
-    await page.getByRole('button', { name: 'Search', exact: true }).click();
-    await page.getByRole('searchbox').first().fill('arrival');
+    await openMenu(page);
+    const search = drawer(page).getByRole('searchbox');
+    await expect(search).not.toBeFocused();
+    await search.fill('arrival');
     await page.keyboard.press('Enter');
     await expect(page).toHaveURL('/search?q=arrival');
   });

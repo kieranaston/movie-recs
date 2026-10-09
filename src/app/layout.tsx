@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
-import { Header } from '@/components/Header';
+import { SiteNav } from '@/components/SiteNav';
 import { Footer } from '@/components/Footer';
 import { ViewerProvider } from '@/components/ViewerProvider';
 import { getViewer } from '@/lib/auth';
@@ -57,8 +57,9 @@ export default async function RootLayout({
     >
       <body className="min-h-screen flex flex-col bg-background text-foreground">
         <ViewerProvider viewer={viewer && { email: viewer.email, name: viewer.name, image: viewer.image }}>
-          <Header />
-          <main className="flex-1">{children}</main>
+          <SiteNav />
+          {/* No header bar: pages start just below the floating menu button and use the whole screen. */}
+          <main className="flex-1 pt-16">{children}</main>
           <Footer />
         </ViewerProvider>
       </body>
