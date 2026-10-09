@@ -94,7 +94,7 @@ export function SectionRow({
       <div
         ref={ref}
         onScroll={onScroll}
-        className={`group/row ${POSTER_ROW} -mx-2 -my-3 scroll-px-2 px-2 py-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden`}
+        className={`${POSTER_ROW} -mx-2 -my-3 scroll-px-2 px-2 py-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden`}
       >
         {movies.map((m) => (
           <div key={m.id} className="snap-start">

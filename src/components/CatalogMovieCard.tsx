@@ -8,7 +8,7 @@ import { WatchlistButton } from './WatchlistButton';
 
 /**
  * Poster card. Hover (mouse) or keyboard focus lifts it: a slight zoom, plus a shadow and outline that
- * fade in, while the rest of the row dims. Only transform and opacity animate (the browser promotes them
+ * fade in. Only scale and opacity animate (the browser promotes them
  * to GPU layers just for the animation — no permanent will-change layers per card), so it stays smooth.
  * `hover:` only applies on devices that can hover, so phones get a press effect instead. Respects
  * "reduce motion".
@@ -19,10 +19,8 @@ export function CatalogMovieCard({ movie, inWatchlist = false }: { movie: CardMo
     <div
       className={[
         // Tailwind v4's scale-* sets the CSS `scale` property (not `transform`), so that's what we transition.
-        'group relative transition-[scale,opacity] duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)]',
+        'group relative transition-[scale] duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)]',
         'hover:z-10 hover:scale-[1.06] has-[:focus-visible]:z-10 has-[:focus-visible]:scale-[1.06] active:scale-[0.97]',
-        // Dim the rest of the row while one poster is hovered/focused.
-        'group-hover/row:opacity-60 group-has-[:focus-visible]/row:opacity-60 hover:!opacity-100 has-[:focus-visible]:!opacity-100',
         'motion-reduce:transition-none motion-reduce:hover:scale-100 motion-reduce:has-[:focus-visible]:scale-100',
       ].join(' ')}
     >
