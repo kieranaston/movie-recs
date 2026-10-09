@@ -108,9 +108,10 @@ class UiTest {
         card("Bottom 11").requestFocus()
         compose.onRoot().performKeyInput { pressKey(Key.DirectionUp) }
         card("Top 1").assertIsFocused()
-        compose.onRoot().performKeyInput { pressKey(Key.DirectionRight); pressKey(Key.DirectionRight) }
-        card("Top 3").assertIsFocused()
+        // One column over keeps both rows on screen even on CI's phone-width emulator.
+        compose.onRoot().performKeyInput { pressKey(Key.DirectionRight) }
+        card("Top 2").assertIsFocused()
         compose.onRoot().performKeyInput { pressKey(Key.DirectionDown) }
-        card("Bottom 13").assertIsFocused()
+        card("Bottom 12").assertIsFocused() // a focusRestorer would send this back to Bottom 11
     }
 }
