@@ -3,6 +3,7 @@
 import { useRef, useState, useTransition } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { CatalogMovieCard } from './CatalogMovieCard';
+import { POSTER_ROW, ROW_GAP_PX } from './poster-row';
 import { loadMoreSection } from '@/app/browse-actions';
 import type { CardMovie } from '@/lib/browse';
 import type { SectionId } from '@/lib/taxonomy';
@@ -42,10 +43,11 @@ export function SectionRow({
     });
   };
 
+  // One "page" is exactly the visible posters plus the gap after them, so arrows move whole posters.
   const scroll = (dir: number) => {
     const el = ref.current;
     if (!el) return;
-    const page = el.clientWidth * 0.9;
+    const page = el.clientWidth + ROW_GAP_PX;
     const max = el.scrollWidth - el.clientWidth;
     const target = Math.max(0, Math.min(el.scrollLeft + dir * page, max));
     if ('scrollBehavior' in document.documentElement.style) {
@@ -88,9 +90,9 @@ export function SectionRow({
           </button>
         </div>
       </div>
-      <div ref={ref} onScroll={onScroll} className="flex gap-3 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <div ref={ref} onScroll={onScroll} className={`${POSTER_ROW} pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden`}>
         {movies.map((m) => (
-          <div key={m.id} className="w-[132px] sm:w-[148px] shrink-0">
+          <div key={m.id} className="snap-start">
             <CatalogMovieCard movie={m} inWatchlist={savedIds.includes(m.tmdbId)} />
           </div>
         ))}

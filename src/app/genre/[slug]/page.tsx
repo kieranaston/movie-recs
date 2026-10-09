@@ -1,27 +1,11 @@
 import { Suspense } from 'react';
+import { RowsSkeleton } from '@/components/poster-row';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { SectionList } from '@/components/SectionList';
 import { genreBySlug } from '@/lib/taxonomy';
 
 export const dynamic = 'force-dynamic';
-
-function SectionsSkeleton() {
-  return (
-    <div className="space-y-8">
-      {Array.from({ length: 4 }).map((_, s) => (
-        <div key={s}>
-          <div className="h-6 w-40 bg-gray-800 animate-pulse rounded mb-3" />
-          <div className="flex gap-3 overflow-hidden">
-            {Array.from({ length: 7 }).map((_, i) => (
-              <div key={i} className="w-[132px] sm:w-[148px] shrink-0 aspect-[2/3] rounded-lg bg-gray-800 animate-pulse" />
-            ))}
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
 
 export default async function GenrePage({
   params,
@@ -65,7 +49,7 @@ export default async function GenrePage({
         </nav>
       )}
 
-      <Suspense fallback={<SectionsSkeleton />}>
+      <Suspense fallback={<RowsSkeleton rows={4} />}>
         <SectionList genreId={genre.tmdbId} filter={selected} />
       </Suspense>
     </div>

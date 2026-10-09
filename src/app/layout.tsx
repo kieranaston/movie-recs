@@ -48,7 +48,8 @@ export const viewport: Viewport = {
 
 export default async function RootLayout({
   children,
-}: Readonly<{ children: React.ReactNode }>) {
+  modal,
+}: Readonly<{ children: React.ReactNode; modal: React.ReactNode }>) {
   const viewer = await getViewer();
   return (
     <html
@@ -60,6 +61,7 @@ export default async function RootLayout({
           <SiteNav />
           {/* No header bar: pages start just below the floating menu button and use the whole screen. */}
           <main className="flex-1 pt-16">{children}</main>
+          {modal /* movie popup (app/@modal), shown over the page */}
           <Footer />
         </ViewerProvider>
       </body>

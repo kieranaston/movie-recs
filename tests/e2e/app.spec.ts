@@ -58,8 +58,11 @@ test.describe('signed in', () => {
     await expect(page.getByRole('dialog', { name: 'Menu' }).getByRole('link', { name: /alice@example.com/ })).toBeVisible();
     await page.keyboard.press('Escape');
     const card = page.locator('div.group', { hasText: 'Inception' }).first();
+    // The button flips instantly (optimistic); wait for the save itself before leaving the page.
+    const saved = page.waitForResponse((r) => r.request().method() === 'POST' && r.ok());
     await card.getByRole('button', { name: 'Add to watchlist' }).click();
     await expect(card.getByRole('button', { name: 'Remove from watchlist' })).toBeVisible();
+    await saved;
 
     await page.goto('/watchlist');
     await expect(page.getByText('Inception')).toBeVisible();
@@ -68,7 +71,9 @@ test.describe('signed in', () => {
     const bob = await context.request.get('/api/v1/watchlist', { headers: bearer(tokens().bob) });
     expect((await bob.json()).movies).toEqual([]);
 
+    const removed = page.waitForResponse((r) => r.request().method() === 'POST' && r.ok());
     await page.getByRole('button', { name: 'Remove from watchlist' }).click();
+    await removed;
     await page.reload();
     await expect(page.getByText('Nothing saved yet')).toBeVisible();
     await context.close();

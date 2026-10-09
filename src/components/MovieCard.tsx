@@ -16,6 +16,7 @@ export function MovieCard({ movie }: MovieCardProps) {
   return (
     <Link
       href={`/movie/${movie.id}`}
+      scroll={false}
       className="group block bg-gray-800 rounded-lg overflow-hidden hover:scale-105 transition-transform duration-200"
       aria-label={`${movie.title} (${year})`}
     >

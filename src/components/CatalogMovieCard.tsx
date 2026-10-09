@@ -10,7 +10,7 @@ export function CatalogMovieCard({ movie, inWatchlist = false }: { movie: CardMo
   const year = movie.year ?? '—';
   return (
     <div className="group relative">
-      <Link href={`/movie/${movie.tmdbId}`} className="block" aria-label={`${movie.title} (${year})`}>
+      <Link href={`/movie/${movie.tmdbId}`} scroll={false} className="block" aria-label={`${movie.title} (${year})`}>
         <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-gray-800">
           <Image
             src={getPosterUrl(movie.posterPath, 'w342')}

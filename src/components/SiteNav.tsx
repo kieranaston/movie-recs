@@ -45,17 +45,12 @@ export function SiteNav() {
     const overflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     // Focus (and so scroll to) the current page; not the search box, which would pop up a phone keyboard.
-    // Wait two frames: the drawer only becomes visible (and focusable) once its transition starts.
-    let frame = requestAnimationFrame(() => {
-      frame = requestAnimationFrame(() => {
-        const current = drawer.current?.querySelector<HTMLElement>('a[aria-current="page"]');
-        const target = current ?? drawer.current?.querySelector<HTMLElement>('button[aria-label="Close menu"]');
-        target?.focus({ preventScroll: true });
-        current?.scrollIntoView({ block: 'center' });
-      });
-    });
+    // The drawer turns visible the moment it opens (see its classes), so it's focusable right away.
+    const current = drawer.current?.querySelector<HTMLElement>('a[aria-current="page"]');
+    const target = current ?? drawer.current?.querySelector<HTMLElement>('button[aria-label="Close menu"]');
+    target?.focus({ preventScroll: true });
+    current?.scrollIntoView({ block: 'center' });
     return () => {
-      cancelAnimationFrame(frame);
       document.removeEventListener('keydown', onKey);
       document.body.style.overflow = overflow;
       button?.focus();
@@ -96,9 +91,10 @@ export function SiteNav() {
         aria-modal="true"
         aria-label="Menu"
         inert={!open}
-        // Hidden when closed (after the slide-out finishes), so it's out of the tab order and screen readers.
-        className={`fixed inset-y-0 left-0 z-50 flex w-72 max-w-[85vw] flex-col border-r border-gray-800 bg-gray-950 shadow-2xl transition-[transform,visibility] duration-200 ease-out ${
-          open ? 'visible translate-x-0' : 'invisible -translate-x-full'
+        // Opening: visible immediately (so focus works), then slides in. Closing: slides out, and only then
+        // becomes hidden (out of the tab order and screen readers) — visibility is transitioned only on close.
+        className={`fixed inset-y-0 left-0 z-50 flex w-72 max-w-[85vw] flex-col border-r border-gray-800 bg-gray-950 shadow-2xl duration-200 ease-out ${
+          open ? 'visible translate-x-0 transition-transform' : 'invisible -translate-x-full transition-[transform,visibility]'
         }`}
       >
         <div className="flex h-16 shrink-0 items-center justify-between px-4">

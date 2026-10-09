@@ -22,7 +22,7 @@ export default async function WatchlistPage() {
         <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-7 gap-3">
           {items.map((m) => (
             <div key={m.id} className="group relative">
-              <Link href={`/movie/${m.tmdbId}`} className="block">
+              <Link href={`/movie/${m.tmdbId}`} scroll={false} className="block">
                 <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-gray-800">
                   <Image
                     src={getPosterUrl(m.posterPath, 'w342')}

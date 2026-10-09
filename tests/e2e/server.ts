@@ -29,6 +29,8 @@ async function main() {
       { tmdbId: 155, title: 'The Dark Knight', releaseDate: '2008-07-16' },
       { tmdbId: 27205, title: 'Inception', releaseDate: '2010-07-15' },
       { tmdbId: 496243, title: 'Parasite', releaseDate: '2019-05-30' },
+      // Enough films that rows scroll sideways and the page scrolls down.
+      ...Array.from({ length: 40 }, (_, i) => ({ tmdbId: 900_000 + i, title: `Seed Film ${i + 1}`, releaseDate: `${1985 + (i % 40)}-03-01` })),
     ].map((m) => ({ ...m, voteAverage: 8.5, voteCount: 20_000, popularity: 100, availableAnywhere: true })))
     .returning();
   await db.insert(schema.movieGenres).values(films.map((f) => ({ movieId: f.id, genreId: action.id })));
