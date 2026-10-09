@@ -1,5 +1,6 @@
 package com.kieranaston.movierecs
 
+import androidx.compose.foundation.layout.Column
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsFocused
@@ -15,6 +16,7 @@ import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isFocusable
 import androidx.compose.ui.test.onRoot
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.kieranaston.movierecs.data.CastMember
 import com.kieranaston.movierecs.data.Movie
 import com.kieranaston.movierecs.data.MovieDetail
 import com.kieranaston.movierecs.ui.components.MovieRow
@@ -64,6 +66,13 @@ class UiTest {
         assertEquals(1, toggles)
     }
 
+    @Test fun detailsListsDirectorsAndCast() {
+        val cast = listOf("Amy Adams", "Jeremy Renner").map { CastMember(it) }
+        compose.setContent { MovieTheme { DetailsContent(detail.copy(directors = listOf("Denis Villeneuve"), cast = cast), inWatchlist = false, onToggleWatchlist = {}, onPlayTrailer = {}) } }
+        compose.onNodeWithText("Directed by  Denis Villeneuve").assertExists()
+        compose.onNodeWithText("Starring  Amy Adams, Jeremy Renner").assertExists()
+    }
+
     @Test fun detailsWithoutTrailerFocusesWatchlist() {
         compose.setContent { MovieTheme { DetailsContent(detail.copy(trailerKey = null), inWatchlist = true, onToggleWatchlist = {}, onPlayTrailer = {}) } }
         compose.onNodeWithText("Trailer").assertDoesNotExist()
@@ -79,5 +88,30 @@ class UiTest {
         card("One").assertIsFocused()
         compose.onRoot().performKeyInput { pressKey(Key.DirectionRight) }
         card("Two").assertIsFocused()
+    }
+
+    /** Up/Down lands on the poster directly above/below, not the one last focused in that row. */
+    @OptIn(ExperimentalTestApi::class)
+    @Test fun dpadUpDownStaysInTheColumn() {
+        val top = (1..4).map { Movie(it, "Top $it") }
+        val bottom = (11..14).map { Movie(it, "Bottom $it") }
+        compose.setContent {
+            MovieTheme {
+                val memory = rememberFocusMemory()
+                Column {
+                    MovieRow("A", top, onOpen = {}, focusPrefix = "a", memory = memory)
+                    MovieRow("B", bottom, onOpen = {}, focusPrefix = "b", memory = memory)
+                }
+            }
+        }
+        val card = { title: String -> compose.onNode(hasText(title) and isFocusable()) }
+        card("Bottom 11").requestFocus()
+        compose.onRoot().performKeyInput { pressKey(Key.DirectionUp) }
+        card("Top 1").assertIsFocused()
+        // One column over keeps both rows on screen even on CI's phone-width emulator.
+        compose.onRoot().performKeyInput { pressKey(Key.DirectionRight) }
+        card("Top 2").assertIsFocused()
+        compose.onRoot().performKeyInput { pressKey(Key.DirectionDown) }
+        card("Bottom 12").assertIsFocused() // a focusRestorer would send this back to Bottom 11
     }
 }

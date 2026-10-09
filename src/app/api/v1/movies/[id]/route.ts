@@ -33,6 +33,11 @@ export async function GET(request: Request, ctx: RouteContext<'/api/v1/movies/[i
       posterPath: movie.poster_path,
       backdropPath: movie.backdrop_path,
       trailerKey: getTrailerKey(movie),
+      directors: (movie.credits?.crew ?? []).filter((c) => c.job === 'Director').map((c) => c.name),
+      cast: [...(movie.credits?.cast ?? [])]
+        .sort((a, b) => a.order - b.order)
+        .slice(0, 15)
+        .map((c) => ({ name: c.name, character: c.character || null, profilePath: c.profile_path })),
       // Canada, grouped the way the website shows them. Data via JustWatch.
       providers: {
         stream: providers(ca?.flatrate),

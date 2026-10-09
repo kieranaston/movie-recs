@@ -3,6 +3,9 @@ package com.kieranaston.movierecs.ui.components
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.gestures.BringIntoViewSpec
+import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,6 +24,7 @@ import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
@@ -30,11 +34,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -171,7 +173,7 @@ fun MovieMeta(year: Int?, rating: Double?, prefix: String? = null) {
     }
 }
 
-@OptIn(ExperimentalComposeUiApi::class)
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun MovieRow(
     title: String,
@@ -183,15 +185,32 @@ fun MovieRow(
 ) {
     Column {
         Text(title, style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(start = Dimens.Gutter))
-        LazyRow(
-            modifier = Modifier.focusRestorer(),
-            contentPadding = PaddingValues(horizontal = Dimens.Gutter, vertical = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(Dimens.PosterGap),
-        ) {
-            itemsIndexed(movies, key = { _, m -> m.tmdbId }) { i, m ->
-                if (onNearEnd != null && i >= movies.size - 6) LaunchedEffect(movies.size) { onNearEnd() }
-                PosterCard(m, { onOpen(m) }, "$focusPrefix:${m.tmdbId}", memory, Modifier.width(Dimens.PosterWidth))
+        // On TV, Compose pivots rows so the focused poster sits ~30% in, which slides the row sideways
+        // when you move Up/Down into it; rows here scroll only when needed instead. No focusRestorer
+        // either, so Up/Down lands on the poster directly above/below, not the row's last focused one.
+        CompositionLocalProvider(LocalBringIntoViewSpec provides ScrollOnlyWhenNeeded) {
+            LazyRow(
+                contentPadding = PaddingValues(horizontal = Dimens.Gutter, vertical = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(Dimens.PosterGap),
+            ) {
+                itemsIndexed(movies, key = { _, m -> m.tmdbId }) { i, m ->
+                    if (onNearEnd != null && i >= movies.size - 6) LaunchedEffect(movies.size) { onNearEnd() }
+                    PosterCard(m, { onOpen(m) }, "$focusPrefix:${m.tmdbId}", memory, Modifier.width(Dimens.PosterWidth))
+                }
             }
+        }
+    }
+}
+
+/** Scrolls a row only when the focused poster comes within 5% of either edge (room for its focus scale). */
+@OptIn(ExperimentalFoundationApi::class)
+private val ScrollOnlyWhenNeeded = object : BringIntoViewSpec {
+    override fun calculateScrollDistance(offset: Float, size: Float, containerSize: Float): Float {
+        val margin = containerSize * 0.05f
+        return when {
+            offset < margin -> offset - margin
+            offset + size > containerSize - margin -> offset + size - (containerSize - margin)
+            else -> 0f
         }
     }
 }

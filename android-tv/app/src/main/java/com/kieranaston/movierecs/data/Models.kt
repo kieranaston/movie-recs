@@ -64,10 +64,15 @@ data class MovieDetail(
     val posterPath: String? = null,
     val backdropPath: String? = null,
     val trailerKey: String? = null,
+    val directors: List<String> = emptyList(),
+    val cast: List<CastMember> = emptyList(),
     val providers: Providers = Providers(),
 ) {
     fun toMovie() = Movie(tmdbId, title, year, posterPath, voteAverage)
 }
+
+@Serializable
+data class CastMember(val name: String, val character: String? = null, val profilePath: String? = null)
 
 /** TMDB image CDN — public, no key needed. */
 object TmdbImages {

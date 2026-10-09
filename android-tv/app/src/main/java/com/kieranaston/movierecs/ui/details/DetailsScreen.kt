@@ -1,9 +1,5 @@
 package com.kieranaston.movierecs.ui.details
 
-import android.content.ActivityNotFoundException
-import android.content.Context
-import android.content.Intent
-import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -31,11 +27,12 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.core.net.toUri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
@@ -76,9 +73,8 @@ class DetailsViewModel(private val api: Api, private val tmdbId: Int) : ViewMode
 
 /** Stateful entry point: loads the movie and wires the watchlist and trailer actions. */
 @Composable
-fun DetailsScreen(tmdbId: Int) {
+fun DetailsScreen(tmdbId: Int, onPlayTrailer: (String) -> Unit) {
     val app = app()
-    val context = LocalContext.current
     val vm = viewModel(key = "movie:$tmdbId") { DetailsViewModel(app.api, tmdbId) }
     val watchlist by app.watchlist.state.collectAsStateWithLifecycle()
 
@@ -89,7 +85,7 @@ fun DetailsScreen(tmdbId: Int) {
             movie = d.value,
             inWatchlist = app.watchlist.contains(watchlist, tmdbId),
             onToggleWatchlist = { app.watchlist.toggle(d.value.toMovie()) },
-            onPlayTrailer = { key -> openTrailer(context, key) },
+            onPlayTrailer = onPlayTrailer,
         )
     }
 }
@@ -140,6 +136,7 @@ fun DetailsContent(
                 maxLines = 3,
                 overflow = TextOverflow.Ellipsis,
             )
+            Credits(movie)
 
             Spacer(Modifier.height(24.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -165,6 +162,29 @@ fun DetailsContent(
         }
     }
     LaunchedEffect(movie.tmdbId) { runCatching { primary.requestFocus() } }
+}
+
+/** "Directed by …" and the top-billed cast, as on the website's movie page. */
+@Composable
+private fun Credits(movie: MovieDetail) {
+    val muted = MaterialTheme.colorScheme.onSurfaceVariant
+    @Composable
+    fun line(label: String, names: List<String>) {
+        if (names.isEmpty()) return
+        Spacer(Modifier.height(8.dp))
+        Text(
+            buildAnnotatedString {
+                withStyle(SpanStyle(color = muted)) { append("$label  ") }
+                append(names.joinToString(", "))
+            },
+            style = MaterialTheme.typography.bodyMedium,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+    if (movie.directors.isNotEmpty() || movie.cast.isNotEmpty()) Spacer(Modifier.height(4.dp))
+    line("Directed by", movie.directors)
+    line("Starring", movie.cast.take(6).map { it.name })
 }
 
 /** 116 → "1h 56m", 45 → "45m". */
@@ -218,24 +238,4 @@ private fun DetailsPlaceholder() {
         Spacer(Modifier.height(24.dp))
         repeat(3) { Placeholder(Modifier.width(520.dp).height(16.dp).padding(bottom = 6.dp)) }
     }
-}
-
-private val YouTubeKey = Regex("^[A-Za-z0-9_-]{6,20}$")
-
-/** Opens the YouTube app, falling back to any app that handles the web URL. */
-private fun openTrailer(context: Context, key: String) {
-    if (!YouTubeKey.matches(key)) return // only ever build intents from a well-formed video id
-    val intents = listOf(
-        Intent(Intent.ACTION_VIEW, "vnd.youtube:$key".toUri()),
-        Intent(Intent.ACTION_VIEW, "https://www.youtube.com/watch?v=$key".toUri()),
-    )
-    for (intent in intents) {
-        try {
-            context.startActivity(intent)
-            return
-        } catch (_: ActivityNotFoundException) {
-            // try the next option
-        }
-    }
-    Toast.makeText(context, "Install YouTube to watch trailers", Toast.LENGTH_SHORT).show()
 }
