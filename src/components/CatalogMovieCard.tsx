@@ -10,8 +10,8 @@ import { WatchlistButton } from './WatchlistButton';
  * Poster card. Hover (mouse) or keyboard focus lifts it: a slight zoom, plus a shadow and outline that
  * fade in. Only scale and opacity animate (the browser promotes them
  * to GPU layers just for the animation — no permanent will-change layers per card), so it stays smooth.
- * `hover:` only applies on devices that can hover, so phones get a press effect instead. Respects
- * "reduce motion".
+ * `hover:` only applies on devices that can hover. Clicking opens the movie straight away (no press
+ * animation). Respects "reduce motion".
  */
 export function CatalogMovieCard({ movie, inWatchlist = false }: { movie: CardMovie; inWatchlist?: boolean }) {
   const year = movie.year ?? '—';
@@ -19,8 +19,8 @@ export function CatalogMovieCard({ movie, inWatchlist = false }: { movie: CardMo
     <div
       className={[
         // Tailwind v4's scale-* sets the CSS `scale` property (not `transform`), so that's what we transition.
-        'group relative transition-[scale] duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)]',
-        'hover:z-10 hover:scale-[1.06] has-[:focus-visible]:z-10 has-[:focus-visible]:scale-[1.06] active:scale-[0.97]',
+        'group relative transition-[scale] duration-200 ease-[cubic-bezier(0.2,0.8,0.2,1)]',
+        'hover:z-10 hover:scale-[1.06] has-[:focus-visible]:z-10 has-[:focus-visible]:scale-[1.06]',
         'motion-reduce:transition-none motion-reduce:hover:scale-100 motion-reduce:has-[:focus-visible]:scale-100',
       ].join(' ')}
     >
@@ -31,7 +31,7 @@ export function CatalogMovieCard({ movie, inWatchlist = false }: { movie: CardMo
             // Shadow + outline live on a separate layer whose opacity fades (cheaper than animating shadows).
             'after:pointer-events-none after:absolute after:inset-0 after:rounded-lg after:opacity-0',
             'after:shadow-[0_18px_40px_-10px_rgba(0,0,0,0.85)] after:ring-2 after:ring-white/80',
-            'after:transition-opacity after:duration-300 group-hover:after:opacity-100 group-has-[:focus-visible]:after:opacity-100',
+            'after:transition-opacity after:duration-200 group-hover:after:opacity-100 group-has-[:focus-visible]:after:opacity-100',
           ].join(' ')}
         >
           <div className="absolute inset-0 overflow-hidden rounded-lg">
