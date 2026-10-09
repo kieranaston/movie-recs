@@ -20,7 +20,8 @@ export const GATE_WR = 6.8;
 export const GATE_VOTES = 200;
 
 export const CLASSIC_MIN_AGE = 25;
-export const RECENT_MAX_AGE = 5;
+/** "Recent" = released within this many months. */
+export const RECENT_MAX_MONTHS = 36;
 
 /** Nothing older than this shows anywhere (viewing preference). */
 export const MIN_YEAR = 1970;
@@ -107,26 +108,6 @@ export function passesGate(m: Scorable): boolean {
   if (m.voteAverage == null || m.voteCount == null) return false;
   if (m.voteCount < GATE_VOTES) return false;
   if (wr(m.voteAverage, m.voteCount, m.releaseDate) < GATE_WR) return false;
-  return true;
-}
-
-// --- cult gate: relaxed, age-aware. Admits mid-rated canon with a following. ---
-export const CULT_VOTES = 100;
-export const CULT_MIN_AGE = 10;
-
-/** Older films get a lower quality floor (cult status accrues over time). */
-export function cultWrFloor(age: number): number {
-  if (age < 15) return 6.4;
-  if (age < 30) return 6.0;
-  return 5.8;
-}
-
-export function passesCultGate(m: Scorable): boolean {
-  if (m.voteAverage == null || m.voteCount == null) return false;
-  if (m.voteCount < CULT_VOTES) return false;
-  const age = ageOf(m.releaseDate);
-  if (age == null || age < CULT_MIN_AGE) return false;
-  if (wr(m.voteAverage, m.voteCount, m.releaseDate) < cultWrFloor(age)) return false;
   return true;
 }
 

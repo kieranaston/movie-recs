@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { eq } from 'drizzle-orm';
 import { db } from '@/db';
-import { genres, movieGenres, movies } from '@/db/schema';
+import { genres, keywords, movieGenres, movieKeywords, movies } from '@/db/schema';
 import { getBrowsePage, qualityRating } from '@/lib/browse';
 import { resetDb, type TestDb } from '../helpers/test-db';
 
@@ -107,5 +107,51 @@ describe('feature films only', () => {
     await db.insert(movieGenres).values({ movieId: rows.find((r) => r.title === 'TV Special')!.id, genreId: tv.id });
     const all = new Set((await getBrowsePage({ genreId: 28, limit: 100 })).sections.flatMap(titles));
     expect([...all]).toEqual(['Feature']);
+  });
+});
+
+describe('row rules', () => {
+  const monthsAgo = (n: number) => {
+    const d = new Date();
+    d.setUTCDate(1);
+    d.setUTCMonth(d.getUTCMonth() - n);
+    return d.toISOString().slice(0, 10);
+  };
+
+  it('Recent covers the last 36 months', async () => {
+    await seed([{ title: '20 Months Ago', votes: 9_000 }, { title: '30 Months Ago', votes: 9_000 }, { title: '48 Months Ago', votes: 9_000 }]);
+    await db.update(movies).set({ releaseDate: monthsAgo(20) }).where(eq(movies.title, '20 Months Ago'));
+    await db.update(movies).set({ releaseDate: monthsAgo(30) }).where(eq(movies.title, '30 Months Ago'));
+    await db.update(movies).set({ releaseDate: monthsAgo(48) }).where(eq(movies.title, '48 Months Ago'));
+    const page = await getBrowsePage({ genreId: 28, limit: 100 });
+    const recent = page.sections.find((s) => s.id === 'recent');
+    expect(titles(recent).sort()).toEqual(['20 Months Ago', '30 Months Ago']);
+  });
+
+  it('hides specials and documentary reunions, but not fiction about a reunion', async () => {
+    const [doc] = await db.insert(genres).values({ tmdbId: 99, name: 'Documentary' }).returning();
+    const kw = await db.insert(keywords).values([
+      { tmdbId: 9716, name: 'stand-up comedy' },
+      { tmdbId: 9824, name: 'reunion' },
+    ]).returning();
+    await seed([{ title: 'Stand-up Special', votes: 9_000 }, { title: 'Cast Reunion', votes: 9_000 }, { title: 'Reunion Thriller', votes: 9_000 }]);
+    const rows = await db.select().from(movies);
+    const id = (t: string) => rows.find((r) => r.title === t)!.id;
+    await db.insert(movieKeywords).values([
+      { movieId: id('Stand-up Special'), keywordId: kw[0].id },
+      { movieId: id('Cast Reunion'), keywordId: kw[1].id },
+      { movieId: id('Reunion Thriller'), keywordId: kw[1].id },
+    ]);
+    await db.insert(movieGenres).values({ movieId: id('Cast Reunion'), genreId: doc.id });
+    const all = new Set((await getBrowsePage({ genreId: 28, limit: 100 })).sections.flatMap(titles));
+    expect([...all]).toEqual(['Reunion Thriller']);
+  });
+
+  it('includes anime', async () => {
+    const [animation] = await db.insert(genres).values({ tmdbId: 16, name: 'Animation' }).returning();
+    await seed([{ title: 'Anime Film', votes: 9_000 }]);
+    const [film] = await db.update(movies).set({ originalLanguage: 'ja' }).where(eq(movies.title, 'Anime Film')).returning();
+    await db.insert(movieGenres).values({ movieId: film.id, genreId: animation.id });
+    expect((await getBrowsePage({ genreId: 16, limit: 100 })).sections.flatMap(titles)).toContain('Anime Film');
   });
 });
