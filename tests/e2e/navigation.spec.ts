@@ -26,13 +26,11 @@ for (const [size, use] of [['desktop', { viewport: { width: 1280, height: 800 } 
       await expect(drawer(page)).toBeHidden();
     });
 
-    test('expands a genre to show its filters', async ({ page }) => {
+    test('lists only primary genres (filters are chips on the genre page)', async ({ page }) => {
       await page.goto('/');
       await openMenu(page);
-      await expect(drawer(page).getByRole('link', { name: 'Pixar' })).toHaveCount(0);
-      await drawer(page).getByRole('button', { name: 'Show Animation filters' }).click();
-      await drawer(page).getByRole('link', { name: 'Pixar' }).click();
-      await expect(page).toHaveURL('/genre/animation?filter=Pixar');
+      for (const f of ['Pixar', 'Slasher', 'Superhero']) await expect(drawer(page).getByRole('link', { name: f })).toHaveCount(0);
+      await expect(drawer(page).getByRole('button', { name: /filters/ })).toHaveCount(0);
     });
 
     test('closes with Escape and by tapping outside', async ({ page }) => {
@@ -49,10 +47,10 @@ for (const [size, use] of [['desktop', { viewport: { width: 1280, height: 800 } 
 }
 
 test.describe('on a genre page', () => {
-  test('the drawer opens on the current page: filters showing, current one marked and in view', async ({ page }) => {
+  test('the drawer marks the current genre (even when filtered) and opens scrolled to it', async ({ page }) => {
     await page.goto('/genre/horror?filter=Slasher');
     await openMenu(page);
-    const current = drawer(page).getByRole('link', { name: 'Slasher' });
+    const current = drawer(page).getByRole('link', { name: 'Horror', exact: true });
     await expect(current).toHaveAttribute('aria-current', 'page');
     await expect(current).toBeFocused();
     await expect(current).toBeInViewport();

@@ -2,8 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { ChevronDown, Menu, Search, X } from 'lucide-react';
+import { usePathname, useRouter } from 'next/navigation';
+import { Menu, Search, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { GENRE_PAGES } from '@/lib/taxonomy';
 import { useViewer } from './ViewerProvider';
@@ -11,26 +11,20 @@ import { useViewer } from './ViewerProvider';
 /**
  * Site navigation without a header bar: a floating menu button opens a drawer from the left with
  * search, every page stacked vertically (the current one marked), and account. Pages get the
- * whole screen. Same on phones and desktop; nothing relies on hover.
+ * whole screen. Only primary genres are listed; their filters are chips on the genre page itself.
  */
 export function SiteNav() {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
   const router = useRouter();
   const viewer = useViewer();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
-  const [expanded, setExpanded] = useState<string | null>(null); // genre showing its filters
   const menuButton = useRef<HTMLButtonElement>(null);
   const drawer = useRef<HTMLDivElement>(null);
 
-  const filter = searchParams.get('filter');
   const currentGenre = pathname.startsWith('/genre/') ? pathname.slice('/genre/'.length) : null;
 
-  const openDrawer = () => {
-    setExpanded(currentGenre); // start with the current genre's filters showing
-    setOpen(true);
-  };
+  const openDrawer = () => setOpen(true);
   const close = () => setOpen(false);
 
   const submitSearch = (e: React.FormEvent) => {
@@ -55,7 +49,9 @@ export function SiteNav() {
     let frame = requestAnimationFrame(() => {
       frame = requestAnimationFrame(() => {
         const current = drawer.current?.querySelector<HTMLElement>('a[aria-current="page"]');
-        (current ?? drawer.current?.querySelector<HTMLElement>('button[aria-label="Close menu"]'))?.focus();
+        const target = current ?? drawer.current?.querySelector<HTMLElement>('button[aria-label="Close menu"]');
+        target?.focus({ preventScroll: true });
+        current?.scrollIntoView({ block: 'center' });
       });
     });
     return () => {
@@ -67,13 +63,11 @@ export function SiteNav() {
   }, [open]);
 
   /** A drawer row; the current page gets a red bar on the left. */
-  const item = (current: boolean, withinCurrent = false) =>
+  const item = (current: boolean) =>
     `relative flex w-full items-center rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
       current
         ? 'bg-gray-800 text-white before:absolute before:inset-y-1.5 before:left-0 before:w-1 before:rounded-full before:bg-primary'
-        : withinCurrent
-          ? 'text-white hover:bg-gray-800/60'
-          : 'text-gray-300 hover:bg-gray-800/60 hover:text-white'
+        : 'text-gray-300 hover:bg-gray-800/60 hover:text-white'
     }`;
 
   return (
@@ -155,45 +149,12 @@ export function SiteNav() {
           <h2 className="mb-2 mt-5 px-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Genres</h2>
           <ul className="space-y-1">
             {GENRE_PAGES.map((g) => {
-              const here = currentGenre === g.slug;
-              const isOpen = expanded === g.slug;
+              const here = currentGenre === g.slug; // includes filtered views (e.g. Horror → Slasher)
               return (
                 <li key={g.slug}>
-                  <div className="flex items-center">
-                    <Link href={`/genre/${g.slug}`} onClick={close} className={item(here && !filter, here)} aria-current={here && !filter ? 'page' : undefined}>
-                      {g.name}
-                    </Link>
-                    {g.filters.length > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => setExpanded(isOpen ? null : g.slug)}
-                        className="ml-1 shrink-0 rounded-lg p-2.5 text-gray-400 hover:bg-gray-800/60 hover:text-white"
-                        aria-label={`${isOpen ? 'Hide' : 'Show'} ${g.name} filters`}
-                        aria-expanded={isOpen}
-                      >
-                        <ChevronDown className={`h-4 w-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
-                      </button>
-                    )}
-                  </div>
-                  {isOpen && (
-                    <ul className="mb-1 ml-3 mt-1 space-y-1 border-l border-gray-800 pl-3">
-                      {g.filters.map((f) => {
-                        const current = here && filter === f.label;
-                        return (
-                          <li key={f.label}>
-                            <Link
-                              href={`/genre/${g.slug}?filter=${encodeURIComponent(f.label)}`}
-                              onClick={close}
-                              className={`${item(current)} py-2 text-[13px]`}
-                              aria-current={current ? 'page' : undefined}
-                            >
-                              {f.label}
-                            </Link>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  )}
+                  <Link href={`/genre/${g.slug}`} onClick={close} className={item(here)} aria-current={here ? 'page' : undefined}>
+                    {g.name}
+                  </Link>
                 </li>
               );
             })}
