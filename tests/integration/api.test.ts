@@ -3,6 +3,7 @@ import { db } from '@/db';
 import { apiRateLimit } from '@/db/schema';
 import { API_RATE_LIMIT } from '@/lib/api';
 import { auth } from '@/lib/auth';
+import { getMovieDetail } from '@/lib/tmdb';
 import * as genresRoute from '@/app/api/v1/genres/route';
 import * as browseRoute from '@/app/api/v1/browse/route';
 import * as sectionRoute from '@/app/api/v1/browse/section/route';
@@ -119,6 +120,29 @@ describe('browse and search', () => {
     const body = await (await searchRoute.GET(req('/search?q=arrival', alice.token))).json();
     expect(body.movies[0]).toEqual({ tmdbId: 329865, title: 'Arrival', year: 2016, posterPath: '/a.jpg', voteAverage: 7.6 });
     expect(await (await searchRoute.GET(req('/search?q=%20', alice.token))).json()).toEqual({ movies: [], page: 1, totalPages: 0 });
+  });
+
+  it('returns details with directors and top-billed cast', async () => {
+    const alice = await createUserWithSession('alice@example.com');
+    vi.mocked(getMovieDetail).mockResolvedValueOnce({
+      id: 155, title: 'The Dark Knight', overview: 'Batman', release_date: '2008-07-16', runtime: 152,
+      vote_average: 8.5, vote_count: 30000, genres: [{ id: 28, name: 'Action' }], poster_path: '/p.jpg', backdrop_path: null,
+      videos: { results: [{ key: 'EXeTwQWrcwY', site: 'YouTube', type: 'Trailer', official: true }] },
+      credits: {
+        cast: [
+          { id: 2, name: 'Heath Ledger', character: 'Joker', profile_path: '/h.jpg', order: 1 },
+          { id: 1, name: 'Christian Bale', character: 'Bruce Wayne', profile_path: null, order: 0 },
+        ],
+        crew: [{ id: 3, name: 'Christopher Nolan', job: 'Director' }, { id: 4, name: 'Hans Zimmer', job: 'Original Music Composer' }],
+      },
+    } as never);
+    const body = await (await movieRoute.GET(req('/movies/155', alice.token), ctx('155'))).json();
+    expect(body.trailerKey).toBe('EXeTwQWrcwY');
+    expect(body.directors).toEqual(['Christopher Nolan']);
+    expect(body.cast).toEqual([
+      { name: 'Christian Bale', character: 'Bruce Wayne', profilePath: null },
+      { name: 'Heath Ledger', character: 'Joker', profilePath: '/h.jpg' },
+    ]);
   });
 
   it('reports unavailable details as 404', async () => {
