@@ -108,6 +108,7 @@ npm run ingest -- --limit 200          # cap movies pulled
 npm run ingest -- --genre-pages 20     # widen per-genre depth
 npm run ingest -- --skip-metadata      # skip the keyword/company stage
 npm run ingest -- --skip-providers     # skip the watch-provider stage
+npm run ingest -- --skip-imdb          # skip the IMDb ratings stage
 npm run ingest -- --providers-limit N  # cap provider lookups this run
 ```
 
@@ -230,6 +231,8 @@ npm run ingest     # Populate/refresh the catalog from TMDB
 This product uses the TMDB API but is not endorsed or certified by TMDB.
 
 Streaming availability data provided by [JustWatch](https://www.justwatch.com).
+
+Ratings information courtesy of [IMDb](https://www.imdb.com). Used with permission. (IMDb's public datasets are licensed for personal, non-commercial use.)
 
 ## Notes
 

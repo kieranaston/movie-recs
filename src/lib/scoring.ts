@@ -20,7 +20,13 @@ export const GATE_WR = 6.8;
 export const GATE_VOTES = 200;
 
 export const CLASSIC_MIN_AGE = 25;
-export const RECENT_MAX_AGE = 5;
+/** "Recent" = released within this many months. */
+export const RECENT_MAX_MONTHS = 36;
+
+// --- "Fun": well-known, enjoyable films that just miss the quality bar (Rush Hour 2, Demolition Man). ---
+export const FUN_MIN_VOTES = 2500; // well-known only, so obscure filler can't get in
+export const FUN_MIN_AGE = 10;
+export const FUN_MIN_RATING = 6.0;
 
 /** Nothing older than this shows anywhere (viewing preference). */
 export const MIN_YEAR = 1970;
@@ -53,9 +59,36 @@ export function yearInRange(releaseDate: string | null): boolean {
   return y != null && y >= MIN_YEAR;
 }
 
-/** Bayesian weighted rating. */
-export function wr(avg: number, votes: number): number {
-  return (votes / (votes + M)) * avg + (M / (votes + M)) * C;
+// --- new releases: early votes skew high (fans vote first), so young films get a stronger prior. ---
+export const NEW_RELEASE_MONTHS = 18;
+export const NEW_RELEASE_PRIOR_BOOST = 4; // prior weight is (1 + 4)× M at release, easing to 1× at 18 months
+
+/** Whole months since release (negative for unreleased), or null if unknown. */
+export function monthsSince(releaseDate: string | null, now: Date = new Date()): number | null {
+  if (!releaseDate) return null;
+  const d = new Date(`${releaseDate.slice(0, 10)}T00:00:00Z`);
+  if (Number.isNaN(d.getTime())) return null;
+  return (now.getUTCFullYear() - d.getUTCFullYear()) * 12 + (now.getUTCMonth() - d.getUTCMonth());
+}
+
+/** Prior weight (in votes) pulling a rating toward C: M, boosted while a film is new. */
+export function priorWeight(releaseDate: string | null | undefined, now: Date = new Date()): number {
+  const months = releaseDate ? monthsSince(releaseDate, now) : null;
+  if (months == null || months >= NEW_RELEASE_MONTHS) return M;
+  const freshness = 1 - Math.max(months, 0) / NEW_RELEASE_MONTHS; // 1 at release → 0 at 18 months
+  return M * (1 + NEW_RELEASE_PRIOR_BOOST * freshness);
+}
+
+const shrink = (avg: number, votes: number, m: number) => (votes / (votes + m)) * avg + (m / (votes + m)) * C;
+
+/**
+ * Bayesian weighted rating. Pass the release date so new releases get the stronger prior — which may
+ * only lower a rating (tempering early fan scores), never lift a weak new film toward C.
+ */
+export function wr(avg: number, votes: number, releaseDate?: string | null, now?: Date): number {
+  const standard = shrink(avg, votes, M);
+  const m = priorWeight(releaseDate, now);
+  return m === M ? standard : Math.min(standard, shrink(avg, votes, m));
 }
 
 /** WR with a vote-count confidence penalty — used by consensus lenses. */
@@ -79,27 +112,7 @@ export function obscurity(votes: number, target: number): number {
 export function passesGate(m: Scorable): boolean {
   if (m.voteAverage == null || m.voteCount == null) return false;
   if (m.voteCount < GATE_VOTES) return false;
-  if (wr(m.voteAverage, m.voteCount) < GATE_WR) return false;
-  return true;
-}
-
-// --- cult gate: relaxed, age-aware. Admits mid-rated canon with a following. ---
-export const CULT_VOTES = 100;
-export const CULT_MIN_AGE = 10;
-
-/** Older films get a lower quality floor (cult status accrues over time). */
-export function cultWrFloor(age: number): number {
-  if (age < 15) return 6.4;
-  if (age < 30) return 6.0;
-  return 5.8;
-}
-
-export function passesCultGate(m: Scorable): boolean {
-  if (m.voteAverage == null || m.voteCount == null) return false;
-  if (m.voteCount < CULT_VOTES) return false;
-  const age = ageOf(m.releaseDate);
-  if (age == null || age < CULT_MIN_AGE) return false;
-  if (wr(m.voteAverage, m.voteCount) < cultWrFloor(age)) return false;
+  if (wr(m.voteAverage, m.voteCount, m.releaseDate) < GATE_WR) return false;
   return true;
 }
 
@@ -129,4 +142,11 @@ export function medianForAge(medians: Map<string, number>, age: number): number 
   }
   const vals = [...medians.values()];
   return vals.length ? vals[vals.length - 1] : BAND_T_ABS;
+}
+
+/** Belongs in "Fun": familiar and decent, but below the main quality bar. */
+export function isFun(m: Scorable): boolean {
+  if (m.voteAverage == null || m.voteCount == null) return false;
+  const age = ageOf(m.releaseDate);
+  return age != null && age >= FUN_MIN_AGE && m.voteCount >= FUN_MIN_VOTES && m.voteAverage >= FUN_MIN_RATING && !passesGate(m);
 }
