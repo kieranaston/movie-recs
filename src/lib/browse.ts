@@ -153,16 +153,19 @@ const GHIBLI_COMPANY = 10342; // Studio Ghibli
 const isAnime = (m: CatalogMovie) => m.genreTmdbIds.includes(ANIMATION_GENRE) && m.originalLanguage === 'ja';
 const isGhibli = (m: CatalogMovie) => m.companyTmdbIds.includes(GHIBLI_COMPANY);
 
-// Rows claim films in this order (each film shows in one row per page). Hidden Gems only takes
+// The first screen of each row shows distinct films, claimed in this order. Hidden Gems only takes
 // genuinely underseen films, so claiming before Top Rated keeps it stocked in small genres while
 // well-known greats (which Top Rated ranks first anyway) still land in Top Rated.
 const PRIORITY: SectionId[] = ['recent', 'classics', 'hidden_gems', 'top_rated', 'cult', 'popular'];
 
-/** Max films per row: Home draws on the whole catalog; genre pages are smaller, so no row may swallow the rest. */
-const SECTION_MAX_HOME = 300;
-const SECTION_MAX_GENRE = 60;
+/** Cards per row on first load, and per "load more" page. */
+export const SECTION_CARDS = 20;
+const SECTION_PAGE = 20;
 
-/** Build every section's full, deduped candidate list (uncapped — callers slice it). */
+/**
+ * Build every row's full ranked list. Rows are unlimited (they scroll through everything that fits
+ * the lens, so no eligible film is unreachable); only the first screen is kept free of repeats.
+ */
 async function compute(genreId?: number, filter?: GenreFilter) {
   const catalog = await getCatalog();
   const target = filter ? await resolveFilterTarget(filter) : [];
@@ -197,19 +200,19 @@ async function compute(genreId?: number, filter?: GenreFilter) {
     popular: sortBy(strict, (m) => m.voteCount),
   };
 
-  // Each film appears in only one row per page, claimed in PRIORITY order and capped per row.
-  const SECTION_MAX = genreId == null && !filter ? SECTION_MAX_HOME : SECTION_MAX_GENRE;
+  // First screen: distinct films across rows, claimed in PRIORITY order.
   const used = new Set<number>();
+  const head = {} as Record<SectionId, ScoredMovie[]>;
+  for (const id of PRIORITY) {
+    head[id] = cand[id].filter((m) => !used.has(m.id)).slice(0, SECTION_CARDS);
+    for (const m of head[id]) used.add(m.id);
+  }
+  // A row whose first screen is full continues through its whole ranking (repeats allowed past it).
+  // A shorter row just ends: it only runs short when everything that fits it is already on the page.
   const full = {} as Record<SectionId, ScoredMovie[]>;
   for (const id of PRIORITY) {
-    const list: ScoredMovie[] = [];
-    for (const m of cand[id]) {
-      if (used.has(m.id)) continue;
-      used.add(m.id);
-      list.push(m);
-      if (list.length >= SECTION_MAX) break;
-    }
-    full[id] = list;
+    const inHead = new Set(head[id].map((m) => m.id));
+    full[id] = head[id].length < SECTION_CARDS ? head[id] : [...head[id], ...cand[id].filter((m) => !inHead.has(m.id))];
   }
 
   const matched = new Map<number, ScoredMovie>();
@@ -219,9 +222,6 @@ async function compute(genreId?: number, filter?: GenreFilter) {
   return { full, matched };
 }
 
-/** Cards rendered per section before any "load more". */
-export const SECTION_CARDS = 20;
-const SECTION_PAGE = 20;
 
 export interface BrowseResult {
   mode: 'sections' | 'list';

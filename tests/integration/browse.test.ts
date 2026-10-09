@@ -39,20 +39,33 @@ describe('genre sections', () => {
     expect(titles(byId.top_rated)).toHaveLength(8);
   });
 
-  it('never shows a film twice on a page', async () => {
+  it('keeps the first screen of every row free of repeats', async () => {
     await seed([
       ...Array.from({ length: 30 }, (_, i) => ({ title: `Famous ${i}`, votes: 15_000 + i * 100, year: 2005 + (i % 20) })),
       ...Array.from({ length: 30 }, (_, i) => ({ title: `Underseen ${i}`, votes: 300 + i * 10, avg: 7.9, year: 2000 + (i % 25) })),
     ]);
-    const all = (await getBrowsePage({ genreId: 28, limit: 1000 })).sections.flatMap(titles);
-    expect(new Set(all).size).toBe(all.length);
+    const firstScreen = (await getBrowsePage({ genreId: 28 })).sections.flatMap(titles); // default: 20 per row
+    expect(new Set(firstScreen).size).toBe(firstScreen.length);
   });
 
-  it('caps each genre row at 60 so one row cannot swallow the rest', async () => {
+  it('does not cap rows: scrolling reaches every eligible film', async () => {
     await seed(Array.from({ length: 90 }, (_, i) => ({ title: `Famous ${i}`, votes: 20_000 + i })));
     const page = await getBrowsePage({ genreId: 28, limit: 1000 });
-    const topRated = page.sections.find((s) => s.id === 'top_rated')!;
-    expect(topRated.total).toBe(60);
-    expect(page.sections.find((s) => s.id === 'popular')!.total).toBe(30); // the rest still get a row
+    expect(page.sections.find((s) => s.id === 'top_rated')!.total).toBe(90);
+    const reachable = new Set(page.sections.flatMap(titles));
+    expect(reachable.size).toBe(page.total);
+  });
+
+  it('pages through a row without gaps or repeats', async () => {
+    await seed(Array.from({ length: 55 }, (_, i) => ({ title: `Famous ${i}`, votes: 20_000 + i })));
+    const { getSectionMovies } = await import('@/lib/browse');
+    const seen: string[] = [];
+    for (let offset = 0; ; offset += 20) {
+      const { movies, total } = await getSectionMovies({ genreId: 28, sectionId: 'popular', offset });
+      seen.push(...movies.map((m) => m.title));
+      if (offset + 20 >= total) break;
+    }
+    expect(seen).toHaveLength(55);
+    expect(new Set(seen).size).toBe(55);
   });
 });
