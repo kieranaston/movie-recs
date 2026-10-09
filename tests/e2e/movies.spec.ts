@@ -84,11 +84,11 @@ test.describe('poster hover effect (desktop)', () => {
   test('lifts the hovered poster without dimming the others, and is not clipped at the edge', async ({ page }) => {
     await page.goto('/');
     const cards = rows(page).first().locator(':scope > div > div.group');
+    // It animates rather than jumping: the zoom is a transition (checked from styles, not timing, so slow CI can't flake).
+    const transition = await cards.first().evaluate((el) => { const cs = getComputedStyle(el); return { prop: cs.transitionProperty, ms: parseFloat(cs.transitionDuration) * 1000 }; });
+    expect(transition.prop).toContain('scale');
+    expect(transition.ms).toBeGreaterThan(0);
     await cards.first().hover();
-    await page.waitForTimeout(100); // mid-transition: it animates rather than jumping
-    const midway = await cards.first().evaluate(scaleOf);
-    expect(midway).toBeGreaterThan(1);
-    expect(midway).toBeLessThan(1.06);
     await page.waitForTimeout(400);
     expect(await cards.first().evaluate(scaleOf)).toBeGreaterThan(1.05);
     expect(await cards.nth(1).evaluate((el) => Number(getComputedStyle(el).opacity))).toBe(1);
