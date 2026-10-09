@@ -1,9 +1,11 @@
 /**
  * E2E harness: an in-memory Postgres (PGlite over the wire protocol) seeded with a tiny catalog
  * and two signed-in users, then the production build (`next start`) pointed at it.
- * It never touches a real database: DATABASE_URL is forced to the local PGlite server.
+ * It never touches a real database: DATABASE_URL is forced to the local PGlite server, and TMDB is a
+ * local fake (movie details with a small cast), so no real API is called.
  */
 import { spawn } from 'node:child_process';
+import { createServer } from 'node:http';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -15,6 +17,7 @@ import * as schema from '../../src/db/schema';
 
 export const E2E_PORT = 3100;
 const DB_PORT = 54329;
+const TMDB_PORT = 3101;
 const FIXTURES = path.join(__dirname, '.fixtures.json');
 
 async function main() {
@@ -41,11 +44,32 @@ async function main() {
     const token = randomBytes(24).toString('base64url');
     await db.insert(schema.session).values({
       id: randomUUID(), token, userId: u.id, userAgent: 'Playwright', updatedAt: new Date(),
-      expiresAt: new Date(Date.now() + 86_400_000),
+      expiresAt: new Date(Date.now() + 30 * 86_400_000), // like a fresh sign-in (30-day sessions)
     });
     tokens[email.split('@')[0]] = token;
   }
   writeFileSync(FIXTURES, JSON.stringify(tokens));
+
+  // Fake TMDB: every /movie/:id returns the same small detail record (no images, so nothing external loads).
+  const tmdb = createServer((req, res) => {
+    const id = Number(/^\/movie\/(\d+)/.exec(req.url ?? '')?.[1]);
+    if (!id) return res.writeHead(404).end();
+    res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify({
+      id, title: 'Fake Feature', overview: 'A film used by the end-to-end tests.', poster_path: null, backdrop_path: null,
+      release_date: '2008-07-16', vote_average: 8.5, vote_count: 30000, genre_ids: [28], genres: [{ id: 28, name: 'Action' }],
+      runtime: 152, status: 'Released', tagline: null, homepage: null, imdb_id: 'tt0468569', original_title: 'Fake Feature',
+      original_language: 'en', production_companies: [], production_countries: [], spoken_languages: [],
+      videos: { results: [] }, 'watch/providers': { results: {} },
+      credits: {
+        cast: [
+          { id: 1, name: 'Christian Bale', character: 'Bruce Wayne', profile_path: null, order: 0 },
+          { id: 2, name: 'Heath Ledger', character: 'Joker', profile_path: null, order: 1 },
+        ],
+        crew: [{ id: 3, name: 'Christopher Nolan', job: 'Director' }],
+      },
+    }));
+  });
+  await new Promise<void>((resolve) => tmdb.listen(TMDB_PORT, '127.0.0.1', resolve));
 
   const pg = new PGLiteSocketServer({ db: client, port: DB_PORT, host: '127.0.0.1', maxConnections: 4 });
   await pg.start();
@@ -61,11 +85,13 @@ async function main() {
       ALLOWED_EMAILS: 'alice@example.com,bob@example.com',
       GOOGLE_CLIENT_ID: 'e2e',
       GOOGLE_CLIENT_SECRET: 'e2e',
-      TMDB_API_KEY: process.env.TMDB_API_KEY ?? 'e2e-no-tmdb',
+      TMDB_API_KEY: 'e2e',
+      TMDB_BASE_URL: `http://127.0.0.1:${TMDB_PORT}`,
     },
   });
   const stop = async () => {
     app.kill('SIGTERM');
+    tmdb.close();
     await pg.stop();
     await client.close();
     process.exit(0);

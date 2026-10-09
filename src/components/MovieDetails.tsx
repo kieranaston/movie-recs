@@ -1,9 +1,9 @@
 import { notFound } from 'next/navigation';
 import Image from 'next/image';
-import { Calendar, Clock, Star, MapPin, Film, ExternalLink } from 'lucide-react';
+import { Calendar, Clock, Star, MapPin, Film, ExternalLink, User } from 'lucide-react';
 import {
-  getMovieDetail, getPosterUrl, getBackdropUrl, getProviderLogoUrl, extractYear, getTrailerKey,
-  type TMDBMovieDetail,
+  getMovieDetail, getPosterUrl, getBackdropUrl, getProviderLogoUrl, getProfileUrl, extractYear, getTrailerKey,
+  type TMDBCastMember, type TMDBMovieDetail,
 } from '@/lib/tmdb';
 import { WatchlistButton } from '@/components/WatchlistButton';
 import { TrailerButton } from '@/components/TrailerButton';
@@ -51,6 +51,8 @@ export async function MovieDetails({ params }: { params: Promise<{ id: string }>
   const year = extractYear(movie.release_date);
   const runtime = movie.runtime ? `${movie.runtime} min` : 'N/A';
 
+  const cast = [...(movie.credits?.cast ?? [])].sort((a, b) => a.order - b.order).slice(0, 15);
+  const directors = (movie.credits?.crew ?? []).filter((c) => c.job === 'Director').map((c) => c.name);
   const hasProviders = [flatrateProviders, rentProviders, buyProviders, freeProviders, adsProviders].some((p) => p.length > 0);
 
   return (
@@ -69,9 +71,9 @@ export async function MovieDetails({ params }: { params: Promise<{ id: string }>
       </div>
 
       <div className="relative px-4 pb-8 pt-20 sm:px-8 sm:pt-28">
-        {/* Header: poster beside title, facts and actions */}
-        <div className="flex items-end gap-4 sm:gap-8">
-          <div className="relative aspect-[2/3] w-28 shrink-0 overflow-hidden rounded-lg bg-gray-800 shadow-2xl sm:w-44 lg:w-52">
+        {/* Header: poster beside title and facts; actions under the title (own full-width line on phones). */}
+        <div className="grid grid-cols-[auto_1fr] items-end gap-x-4 gap-y-4 sm:gap-x-8">
+          <div className="relative aspect-[2/3] w-28 shrink-0 self-end sm:row-span-2 overflow-hidden rounded-lg bg-gray-800 shadow-2xl sm:w-44 lg:w-52">
             <Image
               src={getPosterUrl(movie.poster_path, 'w500')}
               alt={`${movie.title} poster`}
@@ -81,7 +83,7 @@ export async function MovieDetails({ params }: { params: Promise<{ id: string }>
               className="object-cover"
             />
           </div>
-          <div className="min-w-0 flex-1">
+          <div className="min-w-0">
             <h1 className="text-2xl font-bold text-white sm:text-4xl">{movie.title}</h1>
             <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-300">
               <span className="flex items-center gap-1">
@@ -105,14 +107,10 @@ export async function MovieDetails({ params }: { params: Promise<{ id: string }>
                 </span>
               )}
             </div>
-            <div className="mt-4 hidden flex-wrap gap-2 sm:flex">
-              <Actions movie={movie} trailerKey={trailerKey} inWatchlist={inWatchlist} />
-            </div>
           </div>
-        </div>
-        {/* On phones the actions get their own full-width line under the header. */}
-        <div className="mt-4 flex flex-wrap gap-2 sm:hidden">
-          <Actions movie={movie} trailerKey={trailerKey} inWatchlist={inWatchlist} />
+          <div className="col-span-2 flex flex-wrap gap-2 sm:col-span-1 sm:col-start-2 sm:self-start">
+            <Actions movie={movie} trailerKey={trailerKey} inWatchlist={inWatchlist} />
+          </div>
         </div>
 
         <div className="mt-8 grid gap-8 lg:grid-cols-3">
@@ -121,7 +119,14 @@ export async function MovieDetails({ params }: { params: Promise<{ id: string }>
               <h2 id="overview-heading" className="sr-only">Overview</h2>
               {movie.tagline && <p className="mb-3 italic text-gray-400">&ldquo;{movie.tagline}&rdquo;</p>}
               <p className="leading-relaxed text-gray-200 whitespace-pre-line">{movie.overview || 'No overview available.'}</p>
+              {directors.length > 0 && (
+                <p className="mt-3 text-sm text-gray-400">
+                  Directed by <span className="text-gray-200">{directors.join(', ')}</span>
+                </p>
+              )}
             </section>
+
+            {cast.length > 0 && <CastList cast={cast} />}
 
             <section aria-labelledby="streaming-heading">
               <h2 id="streaming-heading" className="mb-4 flex items-center gap-2 text-xl font-bold text-white">
@@ -199,6 +204,33 @@ export async function MovieDetails({ params }: { params: Promise<{ id: string }>
   );
 }
 
+/** Top-billed cast as a scrollable strip of headshots. */
+function CastList({ cast }: { cast: TMDBCastMember[] }) {
+  return (
+    <section aria-labelledby="cast-heading">
+      <h2 id="cast-heading" className="mb-4 text-xl font-bold text-white">Cast</h2>
+      <ul className="-mx-1 flex snap-x gap-3 overflow-x-auto px-1 pb-2 [scrollbar-width:thin]">
+        {cast.map((p) => {
+          const photo = getProfileUrl(p.profile_path);
+          return (
+            <li key={`${p.id}-${p.character}`} className="w-24 shrink-0 snap-start sm:w-28">
+              <div className="relative aspect-[2/3] overflow-hidden rounded-lg bg-gray-800">
+                {photo ? (
+                  <Image src={photo} alt="" fill sizes="112px" className="object-cover" loading="lazy" />
+                ) : (
+                  <User className="absolute inset-0 m-auto h-8 w-8 text-gray-600" aria-hidden="true" />
+                )}
+              </div>
+              <p className="mt-2 line-clamp-2 text-sm font-medium leading-tight text-white">{p.name}</p>
+              {p.character && <p className="mt-0.5 line-clamp-2 text-xs leading-tight text-gray-400">{p.character}</p>}
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+
 function Actions({ movie, trailerKey, inWatchlist }: { movie: TMDBMovieDetail; trailerKey: string | null; inWatchlist: boolean }) {
   return (
     <>
@@ -207,7 +239,7 @@ function Actions({ movie, trailerKey, inWatchlist }: { movie: TMDBMovieDetail; t
         tmdbId={movie.id}
         inWatchlist={inWatchlist}
         showLabel
-        className="inline-flex items-center justify-center gap-2 rounded-lg bg-gray-800 px-4 py-2.5 font-medium text-white transition-colors hover:bg-gray-700"
+        className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 font-medium text-white transition-colors hover:bg-red-700 aria-pressed:bg-gray-800 aria-pressed:hover:bg-gray-700"
       />
     </>
   );
