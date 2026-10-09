@@ -20,6 +20,9 @@ export const movies = pgTable('movies', {
   runtime: integer('runtime'),
   homepage: varchar('homepage', { length: 500 }),
   imdbId: varchar('imdb_id', { length: 20 }),
+  /** From IMDb's public ratings dataset (refreshed by the weekly ingest). */
+  imdbRating: real('imdb_rating'),
+  imdbVotes: integer('imdb_votes'),
   metadataFetchedAt: timestamp('metadata_fetched_at'),
   providersFetchedAt: timestamp('providers_fetched_at'),
   availableAnywhere: boolean('available_anywhere').default(false).notNull(),

@@ -6,6 +6,13 @@ export function Footer() {
           This product uses the TMDB API but is not endorsed or certified by TMDB.
         </p>
         <p className="mb-2">
+          Ratings information courtesy of{' '}
+          <a href="https://www.imdb.com" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+            IMDb
+          </a>
+          . Used with permission.
+        </p>
+        <p className="mb-2">
           Streaming availability data provided by{' '}
           <a
             href="https://www.justwatch.com"

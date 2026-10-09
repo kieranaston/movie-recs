@@ -50,6 +50,8 @@ fun AboutScreen() {
         Spacer(Modifier.height(20.dp))
         Text("Streaming availability data provided by JustWatch.", style = MaterialTheme.typography.bodyMedium, color = muted)
         Spacer(Modifier.height(8.dp))
+        Text("Ratings information courtesy of IMDb (imdb.com). Used with permission.", style = MaterialTheme.typography.bodyMedium, color = muted)
+        Spacer(Modifier.height(8.dp))
         Text("Inter typeface © The Inter Project Authors, SIL Open Font License 1.1.", style = MaterialTheme.typography.bodyMedium, color = muted)
         Spacer(Modifier.height(40.dp))
         Text("Movie Recs ${BuildConfig.VERSION_NAME}", style = MaterialTheme.typography.labelMedium, color = muted)

@@ -7,7 +7,8 @@
  *   3. metadata - fetch keywords + production companies (facet lexicon)
  *   4. providers - CA streaming availability: new titles, plus re-checks (weekly for
  *                  unavailable/recent titles, monthly for the rest)
- *   5. stats    - report C (vote-weighted mean)
+ *   5. imdb     - IMDb ratings (public dataset) for every movie with an IMDb id
+ *   6. stats    - report C (vote-weighted mean)
  *
  * Usage:
  *   npm run ingest
@@ -18,6 +19,9 @@ import postgres from 'postgres';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import { sql, inArray } from 'drizzle-orm';
 import * as fs from 'node:fs';
+import { Readable } from 'node:stream';
+import { createGunzip } from 'node:zlib';
+import { createInterface } from 'node:readline';
 import * as schema from '../src/db/schema';
 import type { TMDBMovie, TMDBMovieDetail, TMDBRegionProviders, TMDBWatchProvider, TMDBWatchProvidersResponse } from '../src/lib/tmdb';
 import { genres, movieCompanies, movieGenres, movieKeywords, movieWatchProviders, movies, keywords, productionCompanies, watchProviders } from '../src/db/schema';
@@ -54,6 +58,7 @@ const LIMIT = argVal('--limit', 0);            // 0 = no cap
 const PAGES = argVal('--pages', 0);            // 0 = per-slice defaults
 const SKIP_METADATA = args.includes('--skip-metadata');
 const SKIP_PROVIDERS = args.includes('--skip-providers');
+const SKIP_IMDB = args.includes('--skip-imdb');
 
 const TMDB = 'https://api.themoviedb.org/3';
 
@@ -437,6 +442,43 @@ async function ingestProviders() {
   }
 }
 
+// ---------- stage 3c: IMDb ratings ----------
+// IMDb's public dataset (personal/non-commercial use): ~8 MB, refreshed daily. IMDb has far more
+// voters than TMDB, so it's the main defence against fan-inflated scores. Re-read every run.
+const IMDB_RATINGS_URL = 'https://datasets.imdbws.com/title.ratings.tsv.gz';
+
+async function ingestImdbRatings() {
+  const rows = (await db.execute(sql`select id, imdb_id from ${movies} where imdb_id is not null and imdb_id <> ''`)) as unknown as {
+    id: number;
+    imdb_id: string;
+  }[];
+  const byImdb = new Map(rows.map((r) => [r.imdb_id, r.id]));
+  console.log(`[imdb] matching ${byImdb.size} movies`);
+
+  const res = await fetch(IMDB_RATINGS_URL);
+  if (!res.ok || !res.body) throw new Error(`IMDb dataset ${res.status}`);
+  const lines = createInterface({ input: Readable.fromWeb(res.body as never).pipe(createGunzip()) });
+  const found: { id: number; rating: number; votes: number }[] = [];
+  for await (const line of lines) {
+    const tab = line.indexOf('\t');
+    const id = byImdb.get(line.slice(0, tab));
+    if (id == null) continue;
+    const [, rating, votes] = line.split('\t');
+    found.push({ id, rating: Number(rating), votes: Number(votes) });
+  }
+
+  const BATCH = 500;
+  for (let i = 0; i < found.length; i += BATCH) {
+    const values = sql.join(found.slice(i, i + BATCH).map((f) => sql`(${f.id}::int, ${f.rating}::real, ${f.votes}::int)`), sql`, `);
+    await db.execute(sql`
+      update ${movies} set imdb_rating = v.rating, imdb_votes = v.votes
+      from (values ${values}) as v(id, rating, votes)
+      where ${movies.id} = v.id
+    `);
+  }
+  console.log(`[imdb] updated ${found.length} of ${byImdb.size} (${((found.length / Math.max(byImdb.size, 1)) * 100).toFixed(1)}%)`);
+}
+
 // ---------- stage 4: stats ----------
 async function reportStats() {
   const c = await db.execute<{ c: number; n: number; votes: number }>(sql`
@@ -457,6 +499,7 @@ async function reportStats() {
   await ingestPool();
   if (!SKIP_METADATA) await ingestMetadata();
   if (!SKIP_PROVIDERS) await ingestProviders();
+  if (!SKIP_IMDB) await ingestImdbRatings();
   await reportStats();
   console.timeEnd('ingest');
   await client.end();

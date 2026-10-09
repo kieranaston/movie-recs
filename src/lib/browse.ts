@@ -77,6 +77,18 @@ const push = <T>(map: Map<number, T[]>, key: number, value: T) => {
   else map.set(key, [value]);
 };
 
+/** IMDb votes needed before its rating replaces TMDB's (≈98% of the catalog qualifies). */
+export const IMDB_MIN_VOTES = 1000;
+
+/**
+ * The rating used for ranking and shown on cards: IMDb's when it has enough votes (it has ~30× more
+ * voters, so fan-inflated TMDB scores get corrected), otherwise TMDB's. Vote *counts* stay TMDB's,
+ * since every threshold (gates, "underseen") is tuned to TMDB numbers.
+ */
+export function qualityRating(tmdb: number, imdb: number | null | undefined, imdbVotes: number | null | undefined): number {
+  return imdb != null && (imdbVotes ?? 0) >= IMDB_MIN_VOTES ? imdb : tmdb;
+}
+
 /** Whole catalog, cached across requests (it only changes on ingest). */
 const loadCatalog = unstable_cache(
   async (): Promise<CatalogMovie[]> => {
@@ -86,6 +98,7 @@ const loadCatalog = unstable_cache(
         voteAverage: movies.voteAverage, voteCount: movies.voteCount, popularity: movies.popularity,
         posterPath: movies.posterPath, backdropPath: movies.backdropPath, originalLanguage: movies.originalLanguage,
         availableAnywhere: movies.availableAnywhere, runtime: movies.runtime,
+        imdbRating: movies.imdbRating, imdbVotes: movies.imdbVotes,
       }).from(movies),
       db.select({ movieId: movieGenres.movieId, tmdbId: genres.tmdbId })
         .from(movieGenres).innerJoin(genres, eq(genres.id, movieGenres.genreId)),
@@ -110,7 +123,7 @@ const loadCatalog = unstable_cache(
         title: m.title,
         releaseDate: m.releaseDate,
         year: S.yearOf(m.releaseDate),
-        voteAverage: m.voteAverage as number,
+        voteAverage: qualityRating(m.voteAverage as number, m.imdbRating, m.imdbVotes),
         voteCount: m.voteCount as number,
         popularity: m.popularity ?? 0,
         posterPath: m.posterPath,
@@ -123,7 +136,7 @@ const loadCatalog = unstable_cache(
         runtime: m.runtime,
       }));
   },
-  ['catalog-v4'],
+  ['catalog-v5'],
   { revalidate: 3600, tags: ['catalog'] }
 );
 
