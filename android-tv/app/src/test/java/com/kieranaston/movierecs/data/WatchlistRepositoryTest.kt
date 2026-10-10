@@ -3,6 +3,7 @@ package com.kieranaston.movierecs.data
 import java.util.concurrent.TimeUnit
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
@@ -69,8 +70,8 @@ class WatchlistRepositoryTest {
         repo.refresh()
         awaitState { it is WatchlistRepository.State.Ready }
 
-        val error = scope.async { repo.errors.first() } // subscribe before anything can be emitted
-        runBlocking { kotlinx.coroutines.yield() }
+        // Undispatched: subscribes right here, before the toggle can emit (errors are dropped with no subscriber).
+        val error = scope.async(start = CoroutineStart.UNDISPATCHED) { repo.errors.first() }
         respond(500)
         respond(200, """{"movies":[]}""")
         repo.toggle(heat)
