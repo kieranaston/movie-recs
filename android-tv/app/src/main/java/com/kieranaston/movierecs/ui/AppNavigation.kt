@@ -22,13 +22,12 @@ import com.kieranaston.movierecs.ui.details.DetailsScreen
 import com.kieranaston.movierecs.ui.genres.GenreScreen
 import com.kieranaston.movierecs.ui.signin.SignInScreen
 import com.kieranaston.movierecs.ui.theme.Motion
-import com.kieranaston.movierecs.ui.trailer.TrailerScreen
+import com.kieranaston.movierecs.ui.trailer.openInYouTube
 import kotlinx.serialization.Serializable
 
 @Serializable private object MainRoute
 @Serializable private data class GenreRoute(val slug: String, val name: String, val filters: List<String>)
 @Serializable private data class DetailsRoute(val tmdbId: Int)
-@Serializable private data class TrailerRoute(val key: String)
 
 /** Signed out → the QR sign-in screen; signed in → the app. Revoking the TV on the website lands back here. */
 @Composable
@@ -69,10 +68,7 @@ private fun SignedInApp() {
             GenreScreen(r.slug, r.name, r.filters, onOpen = { m -> nav.navigate(DetailsRoute(m.tmdbId)) })
         }
         composable<DetailsRoute> {
-            DetailsScreen(it.toRoute<DetailsRoute>().tmdbId, onPlayTrailer = { key -> nav.navigate(TrailerRoute(key)) })
-        }
-        composable<TrailerRoute> {
-            TrailerScreen(it.toRoute<TrailerRoute>().key, onDone = { nav.popBackStack() })
+            DetailsScreen(it.toRoute<DetailsRoute>().tmdbId, onPlayTrailer = { key -> openInYouTube(context, key) })
         }
     }
 }
