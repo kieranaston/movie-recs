@@ -113,7 +113,7 @@ export async function MovieDetails({ params }: { params: Promise<{ id: string }>
           </div>
         </div>
 
-        <div className="mt-8 grid gap-8 lg:grid-cols-3">
+        <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-3">
           <div className="space-y-8 lg:col-span-2">
             <section aria-labelledby="overview-heading">
               <h2 id="overview-heading" className="sr-only">Overview</h2>
