@@ -27,7 +27,6 @@ object Palette {
     val Text = Color(0xFFEDEDED)
     val TextMuted = Color(0xFFA3A3A3)       // metadata, captions
     val FocusBorder = Color.White           // outline on the focused poster
-    val Star = Color(0xFFF5C518)            // rating star
 }
 
 /** Sizes and spacing. 1 dp ≈ 2 px on a 1080p TV (the screen is 960 × 540 dp). */

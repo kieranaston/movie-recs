@@ -48,7 +48,6 @@ import androidx.tv.material3.Border
 import androidx.tv.material3.Glow
 import androidx.tv.material3.Card
 import androidx.tv.material3.CardDefaults
-import androidx.tv.material3.Icon
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import coil3.compose.AsyncImage
@@ -156,7 +155,7 @@ fun PosterCard(
     }
 }
 
-/** "2016 · ★ 7.6" */
+/** "2016 · 7.6" */
 @Composable
 fun MovieMeta(year: Int?, rating: Double?, prefix: String? = null) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -166,7 +165,6 @@ fun MovieMeta(year: Int?, rating: Double?, prefix: String? = null) {
         if (parts.isNotEmpty()) Text(parts.joinToString("  ·  "), style = style, color = color)
         if (rating != null && rating > 0) {
             if (parts.isNotEmpty()) Text("·", style = style, color = color)
-            Icon(AppIcons.Star, contentDescription = null, tint = Palette.Star, modifier = Modifier.size(12.dp))
             val locale = LocalConfiguration.current.locales[0]
             Text(String.format(locale, "%.1f", rating), style = style, color = color)
         }
