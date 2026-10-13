@@ -7,6 +7,7 @@ import {
 } from '@/lib/tmdb';
 import { WatchlistButton } from '@/components/WatchlistButton';
 import { TrailerButton } from '@/components/TrailerButton';
+import { ExpandableText } from '@/components/ExpandableText';
 import { getWatchlistIds } from '@/lib/watchlist';
 import { getViewer } from '@/lib/auth';
 
@@ -118,7 +119,7 @@ export async function MovieDetails({ params }: { params: Promise<{ id: string }>
             <section aria-labelledby="overview-heading">
               <h2 id="overview-heading" className="sr-only">Overview</h2>
               {movie.tagline && <p className="mb-3 italic text-gray-400">&ldquo;{movie.tagline}&rdquo;</p>}
-              <p className="leading-relaxed text-gray-200 whitespace-pre-line">{movie.overview || 'No overview available.'}</p>
+              <ExpandableText text={movie.overview || 'No overview available.'} />
               {directors.length > 0 && (
                 <p className="mt-3 text-sm text-gray-400">
                   Directed by <span className="text-gray-200">{directors.join(', ')}</span>
