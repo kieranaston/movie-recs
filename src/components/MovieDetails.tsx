@@ -1,8 +1,8 @@
 import { notFound } from 'next/navigation';
 import Image from 'next/image';
-import { Calendar, Clock, Star, MapPin, Film, ExternalLink, User } from 'lucide-react';
+import { Calendar, Clock, Star, Film, ExternalLink, User } from 'lucide-react';
 import {
-  getMovieDetail, getPosterUrl, getBackdropUrl, getProviderLogoUrl, getProfileUrl, extractYear, getTrailerKey,
+  getMovieDetail, getPosterUrl, getBackdropUrl, getProfileUrl, extractYear, getTrailerKey,
   type TMDBCastMember, type TMDBMovieDetail,
 } from '@/lib/tmdb';
 import { WatchlistButton } from '@/components/WatchlistButton';
@@ -41,20 +41,12 @@ export async function MovieDetails({ params }: { params: Promise<{ id: string }>
   const viewer = await getViewer();
   const inWatchlist = viewer ? (await getWatchlistIds(viewer.id)).includes(movieId) : false;
 
-  const caProviders = movie['watch/providers']?.results.CA;
-  const flatrateProviders = caProviders?.flatrate ?? [];
-  const rentProviders = caProviders?.rent ?? [];
-  const buyProviders = caProviders?.buy ?? [];
-  const freeProviders = caProviders?.free ?? [];
-  const adsProviders = caProviders?.ads ?? [];
-
   const genres = movie.genres?.map((g) => g.name).join(', ') ?? 'N/A';
   const year = extractYear(movie.release_date);
   const runtime = movie.runtime ? `${movie.runtime} min` : 'N/A';
 
   const cast = [...(movie.credits?.cast ?? [])].sort((a, b) => a.order - b.order).slice(0, 15);
   const directors = (movie.credits?.crew ?? []).filter((c) => c.job === 'Director').map((c) => c.name);
-  const hasProviders = [flatrateProviders, rentProviders, buyProviders, freeProviders, adsProviders].some((p) => p.length > 0);
 
   return (
     <article className="relative mx-auto max-w-6xl">
@@ -128,31 +120,6 @@ export async function MovieDetails({ params }: { params: Promise<{ id: string }>
             </section>
 
             {cast.length > 0 && <CastList cast={cast} />}
-
-            <section aria-labelledby="streaming-heading">
-              <h2 id="streaming-heading" className="mb-4 flex items-center gap-2 text-xl font-bold text-white">
-                <MapPin className="h-5 w-5 text-primary" aria-hidden="true" />
-                Where to Watch in Canada
-              </h2>
-              {!hasProviders ? (
-                <p className="rounded-lg bg-gray-800/50 p-4 text-gray-400">No streaming availability information available for Canada.</p>
-              ) : (
-                <div className="space-y-5">
-                  {flatrateProviders.length > 0 && <ProviderGroup title="Streaming (Subscription)" providers={flatrateProviders} iconColor="text-green-400" />}
-                  {freeProviders.length > 0 && <ProviderGroup title="Free" providers={freeProviders} iconColor="text-blue-400" />}
-                  {adsProviders.length > 0 && <ProviderGroup title="Free with Ads" providers={adsProviders} iconColor="text-blue-400" />}
-                  {rentProviders.length > 0 && <ProviderGroup title="Rent" providers={rentProviders} iconColor="text-orange-400" />}
-                  {buyProviders.length > 0 && <ProviderGroup title="Buy" providers={buyProviders} iconColor="text-purple-400" />}
-                </div>
-              )}
-              <p className="mt-4 text-xs text-gray-500">
-                Streaming availability data provided by{' '}
-                <a href="https://www.justwatch.com" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
-                  JustWatch
-                </a>
-                .
-              </p>
-            </section>
           </div>
 
           <aside className="space-y-4">
@@ -243,51 +210,6 @@ function Actions({ movie, trailerKey, inWatchlist }: { movie: TMDBMovieDetail; t
         className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 font-medium text-white transition-colors hover:bg-red-700 aria-pressed:bg-gray-800 aria-pressed:hover:bg-gray-700"
       />
     </>
-  );
-}
-
-function ProviderGroup({
-  title,
-  providers,
-  iconColor,
-}: {
-  title: string;
-  providers: Array<{ provider_name: string; logo_path: string; display_priority: number }>;
-  iconColor: string;
-}) {
-  const sortedProviders = [...providers].sort((a, b) => a.display_priority - b.display_priority);
-
-  return (
-    <div>
-      <h3 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
-        <span className={`h-2 w-2 rounded-full ${iconColor}`} aria-hidden="true" />
-        {title}
-      </h3>
-      <div className="flex flex-wrap gap-3">
-        {sortedProviders.map((provider) => (
-          <a
-            key={provider.provider_name}
-            href={`https://www.justwatch.com/ca/provider/${provider.provider_name.toLowerCase().replace(/\s+/g, '-')}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-2 px-3 py-2 bg-gray-800/50 rounded-lg hover:bg-gray-800 transition-colors group"
-            aria-label={`${provider.provider_name} (${title})`}
-          >
-            <Image
-              src={getProviderLogoUrl(provider.logo_path)}
-              alt=""
-              width={32}
-              height={32}
-              className="h-8 w-8 object-contain transition-opacity"
-              loading="lazy"
-            />
-            <span className="text-sm font-medium text-white group-hover:text-primary transition-colors">
-              {provider.provider_name}
-            </span>
-          </a>
-        ))}
-      </div>
-    </div>
   );
 }
 
