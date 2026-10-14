@@ -19,11 +19,18 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.foundation.focusGroup
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.tv.material3.MaterialTheme
@@ -53,6 +60,7 @@ fun MainScreen(onOpenMovie: (Movie) -> Unit, onOpenGenre: (Genre) -> Unit) {
     var initialFocusDone by rememberSaveable { mutableStateOf(false) }
     val tabFocus = remember { TopTab.entries.associateWith { FocusRequester() } }
     val memory = rememberFocusMemory()
+    val contentFocus = remember { FocusRequester() }
 
     BackHandler(enabled = !tabsFocused || tab != TopTab.Home) {
         val target = if (tabsFocused) TopTab.Home else tab
@@ -71,7 +79,8 @@ fun MainScreen(onOpenMovie: (Movie) -> Unit, onOpenGenre: (Genre) -> Unit) {
                 modifier = Modifier
                     .onFocusChanged { tabsFocused = it.hasFocus }
                     .focusRestorer(tabFocus.getValue(tab))
-                    .focusGroup(),
+                    .focusGroup()
+                    .focusFirstOnDown(contentFocus),
             ) {
                 TopTab.entries.forEach { t ->
                     Tab(
@@ -85,7 +94,7 @@ fun MainScreen(onOpenMovie: (Movie) -> Unit, onOpenGenre: (Genre) -> Unit) {
             }
         }
 
-        Box(Modifier.fillMaxSize()) {
+        Box(Modifier.fillMaxSize().focusRequester(contentFocus)) {
             when (tab) {
                 TopTab.Home -> {
                     val api = app().api
@@ -106,5 +115,22 @@ fun MainScreen(onOpenMovie: (Movie) -> Unit, onOpenGenre: (Genre) -> Unit) {
             withFrameNanos { }
             runCatching { tabFocus.getValue(tab).requestFocus() }
         }
+    }
+}
+
+/**
+ * Down from the tab bar jumps into the content and lands on the first item, not the nearest tile:
+ * request focus on the content's [contentFocus] (attached to the content container), falling back to
+ * normal movement if nothing down there is focusable yet (e.g. still loading).
+ */
+@Composable
+fun Modifier.focusFirstOnDown(contentFocus: FocusRequester): Modifier {
+    val focusManager = LocalFocusManager.current
+    return onPreviewKeyEvent { e ->
+        if (e.type != KeyEventType.KeyDown || e.key != Key.DirectionDown) return@onPreviewKeyEvent false
+        if (!runCatching { contentFocus.requestFocus(); true }.getOrDefault(false)) {
+            focusManager.moveFocus(FocusDirection.Down)
+        }
+        true
     }
 }

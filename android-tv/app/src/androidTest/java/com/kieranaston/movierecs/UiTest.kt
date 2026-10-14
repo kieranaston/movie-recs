@@ -1,7 +1,13 @@
 package com.kieranaston.movierecs
 
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.junit4.v2.createComposeRule
@@ -15,13 +21,17 @@ import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isFocusable
 import androidx.compose.ui.test.onRoot
+import androidx.compose.runtime.remember
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.tv.material3.Text
 import com.kieranaston.movierecs.data.CastMember
 import com.kieranaston.movierecs.data.Movie
 import com.kieranaston.movierecs.data.MovieDetail
 import com.kieranaston.movierecs.ui.components.MovieRow
 import com.kieranaston.movierecs.ui.components.rememberFocusMemory
 import com.kieranaston.movierecs.ui.details.DetailsContent
+import com.kieranaston.movierecs.ui.focusFirstOnDown
+import com.kieranaston.movierecs.ui.genres.GenreTile
 import com.kieranaston.movierecs.ui.signin.SignInContent
 import com.kieranaston.movierecs.ui.theme.MovieTheme
 import org.junit.Assert.assertEquals
@@ -113,5 +123,28 @@ class UiTest {
         card("Top 2").assertIsFocused()
         compose.onRoot().performKeyInput { pressKey(Key.DirectionDown) }
         card("Bottom 12").assertIsFocused() // a focusRestorer would send this back to Bottom 11
+    }
+
+    /** Down from the top tabs lands on the first item in the content, not the nearest one. */
+    @OptIn(ExperimentalTestApi::class)
+    @Test fun dpadDownFromTabsFocusesTheFirstItem() {
+        compose.setContent {
+            MovieTheme {
+                val tab = remember { FocusRequester() }
+                val content = remember { FocusRequester() }
+                Column {
+                    Box(Modifier.testTag("tab").focusRequester(tab).focusable().focusFirstOnDown(content)) {
+                        Text("Tab")
+                    }
+                    Column(Modifier.focusRequester(content)) {
+                        GenreTile("First", onClick = {})
+                        GenreTile("Second", onClick = {})
+                    }
+                }
+            }
+        }
+        compose.onNodeWithTag("tab").requestFocus()
+        compose.onRoot().performKeyInput { pressKey(Key.DirectionDown) }
+        compose.onNode(hasText("First") and isFocusable()).assertIsFocused()
     }
 }
