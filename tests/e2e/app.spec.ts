@@ -170,6 +170,24 @@ test.describe('movie page', () => {
     await expect(page.getByRole('button', { name: 'Add to watchlist' })).toHaveCount(0);
   });
 
+  test('clips a long overview behind a Read more toggle', async ({ page }) => {
+    await page.goto('/movie/155');
+    const section = page.locator('section[aria-labelledby="overview-heading"]');
+    const overview = () => section.locator('div.relative > p').first().boundingBox();
+    const readMore = section.getByRole('button', { name: 'Read more' });
+
+    await expect(readMore).toBeVisible();
+    const clipped = await overview();
+    await readMore.click();
+    await expect(section.getByRole('button', { name: 'Show less' })).toBeVisible();
+    const expanded = await overview();
+    expect(expanded!.height).toBeGreaterThan(clipped!.height);
+
+    await section.getByRole('button', { name: 'Show less' }).click();
+    await expect(readMore).toBeVisible();
+    expect((await overview())!.height).toBeCloseTo(clipped!.height, 0);
+  });
+
   test('signed in: adds to and removes from the watchlist', async ({ browser, request }) => {
     // A real browser session cookie (as after Google sign-in), so server actions behave as they do for users.
     const context = await browser.newContext();

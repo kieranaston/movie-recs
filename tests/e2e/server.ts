@@ -55,7 +55,10 @@ async function main() {
     const id = Number(/^\/movie\/(\d+)/.exec(req.url ?? '')?.[1]);
     if (!id) return res.writeHead(404).end();
     res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify({
-      id, title: 'Fake Feature', overview: 'A film used by the end-to-end tests.', poster_path: null, backdrop_path: null,
+      id, title: 'Fake Feature',
+      // Long enough that the movie page clips it behind a "Read more" toggle.
+      overview: 'A film used by the end-to-end tests. '.repeat(40).trim(),
+      poster_path: null, backdrop_path: null,
       release_date: '2008-07-16', vote_average: 8.5, vote_count: 30000, genre_ids: [28], genres: [{ id: 28, name: 'Action' }],
       runtime: 152, status: 'Released', tagline: null, homepage: null, imdb_id: 'tt0468569', original_title: 'Fake Feature',
       original_language: 'en', production_companies: [], production_countries: [], spoken_languages: [],
