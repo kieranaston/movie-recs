@@ -4,7 +4,6 @@ import { redirect } from 'next/navigation';
 import { getViewer } from '@/lib/auth';
 import { getWatchlist } from '@/lib/watchlist';
 import { getPosterUrl, extractYear } from '@/lib/tmdb';
-import { WatchlistButton } from '@/components/WatchlistButton';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,7 +16,7 @@ export default async function WatchlistPage() {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-6">
       <h1 className="sr-only">Watchlist</h1>
       {items.length === 0 ? (
-        <p className="text-gray-400">Nothing saved yet — tap the bookmark on any film to add it.</p>
+        <p className="text-gray-400">Nothing saved yet — open a film and tap the bookmark to add it.</p>
       ) : (
         <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-7 gap-3">
           {items.map((m) => (
@@ -40,11 +39,6 @@ export default async function WatchlistPage() {
                   </p>
                 </div>
               </Link>
-              <WatchlistButton
-                tmdbId={m.tmdbId}
-                inWatchlist
-                className="absolute top-1.5 right-1.5 p-1.5 rounded-full bg-black/55 hover:bg-black/80 text-white"
-              />
             </div>
           ))}
         </div>

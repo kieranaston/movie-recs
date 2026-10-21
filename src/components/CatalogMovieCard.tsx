@@ -4,16 +4,15 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { getPosterUrl } from '@/lib/tmdb';
 import type { CardMovie } from '@/lib/browse';
-import { WatchlistButton } from './WatchlistButton';
 
 /**
  * Poster card. Hover (mouse) or keyboard focus lifts it: a slight zoom, plus a shadow and outline that
  * fade in. Only scale and opacity animate (the browser promotes them
  * to GPU layers just for the animation — no permanent will-change layers per card), so it stays smooth.
  * `hover:` only applies on devices that can hover. Clicking opens the movie straight away (no press
- * animation). Respects "reduce motion".
+ * animation). Respects "reduce motion". Saving happens on the movie page, so the card has no button.
  */
-export function CatalogMovieCard({ movie, inWatchlist = false }: { movie: CardMovie; inWatchlist?: boolean }) {
+export function CatalogMovieCard({ movie }: { movie: CardMovie }) {
   const year = movie.year ?? '—';
   return (
     <div
@@ -52,11 +51,6 @@ export function CatalogMovieCard({ movie, inWatchlist = false }: { movie: CardMo
           </p>
         </div>
       </Link>
-      <WatchlistButton
-        tmdbId={movie.tmdbId}
-        inWatchlist={inWatchlist}
-        className="absolute right-1.5 top-1.5 rounded-full bg-black/60 p-1.5 text-white hover:bg-black/85"
-      />
     </div>
   );
 }

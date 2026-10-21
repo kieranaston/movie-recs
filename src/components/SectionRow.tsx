@@ -14,14 +14,12 @@ export function SectionRow({
   genreId,
   initialMovies,
   total,
-  savedIds,
 }: {
   id: SectionId;
   label: string;
   genreId?: number;
   initialMovies: CardMovie[];
   total: number;
-  savedIds: number[];
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [extra, setExtra] = useState<CardMovie[]>([]);
@@ -98,7 +96,7 @@ export function SectionRow({
       >
         {movies.map((m) => (
           <div key={m.id} className="snap-start">
-            <CatalogMovieCard movie={m} inWatchlist={savedIds.includes(m.tmdbId)} />
+            <CatalogMovieCard movie={m} />
           </div>
         ))}
       </div>
