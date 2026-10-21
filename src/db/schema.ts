@@ -157,6 +157,25 @@ export const userWatchlist = pgTable('user_watchlist', {
   index('user_watchlist_user_added_idx').on(t.userId, t.addedAt),
 ]);
 
+/**
+ * Each user's watched titles and their personal rating (0.5–10, one decimal like TMDB, or null when
+ * watched but unrated). Title/poster are snapshotted like the watchlist so the list renders without TMDB calls.
+ */
+export const userWatched = pgTable('user_watched', {
+  id: serial('id').primaryKey(),
+  userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+  tmdbId: integer('tmdb_id').notNull(),
+  title: varchar('title', { length: 500 }).notNull(),
+  posterPath: varchar('poster_path', { length: 500 }),
+  releaseDate: varchar('release_date', { length: 20 }),
+  voteAverage: real('vote_average'),
+  rating: real('rating'),
+  watchedAt: timestamp('watched_at').defaultNow().notNull(),
+}, (t) => [
+  uniqueIndex('user_watched_user_movie_idx').on(t.userId, t.tmdbId),
+  index('user_watched_user_watched_idx').on(t.userId, t.watchedAt),
+]);
+
 /** Fixed-window request counters for the JSON API, keyed by user or IP. */
 export const apiRateLimit = pgTable('api_rate_limit', {
   key: text('key').primaryKey(),
@@ -209,4 +228,5 @@ export type NewProductionCompany = typeof productionCompanies.$inferInsert;
 export type WatchProvider = typeof watchProviders.$inferSelect;
 export type NewWatchProvider = typeof watchProviders.$inferInsert;
 export type WatchlistItem = typeof userWatchlist.$inferSelect;
+export type WatchedItem = typeof userWatched.$inferSelect;
 export type User = typeof user.$inferSelect;

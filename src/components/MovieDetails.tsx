@@ -6,9 +6,11 @@ import {
   type TMDBCastMember, type TMDBMovieDetail,
 } from '@/lib/tmdb';
 import { WatchlistButton } from '@/components/WatchlistButton';
+import { WatchedRating } from '@/components/WatchedRating';
 import { TrailerButton } from '@/components/TrailerButton';
 import { ExpandableText } from '@/components/ExpandableText';
 import { getWatchlistIds } from '@/lib/watchlist';
+import { getWatchedRatings } from '@/lib/watched';
 import { getViewer } from '@/lib/auth';
 
 /**
@@ -40,6 +42,9 @@ export async function MovieDetails({ params }: { params: Promise<{ id: string }>
   const trailerKey = getTrailerKey(movie);
   const viewer = await getViewer();
   const inWatchlist = viewer ? (await getWatchlistIds(viewer.id)).includes(movieId) : false;
+  const watchedRatings = viewer ? await getWatchedRatings(viewer.id) : null;
+  const watched = watchedRatings?.has(movieId) ?? false;
+  const rating = watchedRatings?.get(movieId) ?? null;
 
   const genres = movie.genres?.map((g) => g.name).join(', ') ?? 'N/A';
   const year = extractYear(movie.release_date);
@@ -102,7 +107,7 @@ export async function MovieDetails({ params }: { params: Promise<{ id: string }>
             </div>
           </div>
           <div className="col-span-2 flex flex-wrap gap-2 sm:col-span-1 sm:col-start-2 sm:self-start">
-            <Actions movie={movie} trailerKey={trailerKey} inWatchlist={inWatchlist} />
+            <Actions movie={movie} trailerKey={trailerKey} inWatchlist={inWatchlist} watched={watched} rating={rating} />
           </div>
         </div>
 
@@ -199,7 +204,7 @@ function CastList({ cast }: { cast: TMDBCastMember[] }) {
   );
 }
 
-function Actions({ movie, trailerKey, inWatchlist }: { movie: TMDBMovieDetail; trailerKey: string | null; inWatchlist: boolean }) {
+function Actions({ movie, trailerKey, inWatchlist, watched, rating }: { movie: TMDBMovieDetail; trailerKey: string | null; inWatchlist: boolean; watched: boolean; rating: number | null }) {
   return (
     <>
       {trailerKey && <TrailerButton youtubeKey={trailerKey} title={movie.title} />}
@@ -209,6 +214,7 @@ function Actions({ movie, trailerKey, inWatchlist }: { movie: TMDBMovieDetail; t
         showLabel
         className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 font-medium text-white transition-colors hover:bg-red-700 aria-pressed:bg-gray-800 aria-pressed:hover:bg-gray-700"
       />
+      <WatchedRating tmdbId={movie.id} watched={watched} rating={rating} />
     </>
   );
 }

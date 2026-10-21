@@ -1,10 +1,11 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { eq } from 'drizzle-orm';
 import { db } from '@/db';
-import { legacyWatchlist, session, userWatchlist } from '@/db/schema';
+import { legacyWatchlist, session, userWatchlist, userWatched } from '@/db/schema';
 import { allowRequest } from '@/lib/rate-limit';
 import { claimLegacyWatchlist } from '@/lib/legacy-watchlist';
 import { addToWatchlist, removeFromWatchlist } from '@/app/watchlist/actions';
+import { setRating, setWatched } from '@/app/watched/actions';
 import { revokeDevice } from '@/app/account/actions';
 import { resetDb, type TestDb } from '../helpers/test-db';
 import { createSession, createUserWithSession, seedCatalog } from '../helpers/fixtures';
@@ -44,6 +45,35 @@ describe('watchlist server actions', () => {
     const rows = await db.select().from(userWatchlist);
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({ userId: alice.user.id, tmdbId: 155, title: 'The Dark Knight' });
+  });
+});
+
+describe('watched server actions', () => {
+  it('require a signed-in user', async () => {
+    await expect(setWatched(155, true)).rejects.toThrow('Unauthorized');
+    await expect(setRating(155, 4)).rejects.toThrow('Unauthorized');
+  });
+
+  it('records watched + rating', async () => {
+    await seedCatalog(db as unknown as TestDb);
+    const alice = await createUserWithSession('alice@example.com');
+    actAs(alice.token);
+
+    await setWatched(155, true);
+
+    const watched = await db.select().from(userWatched);
+    expect(watched).toHaveLength(1);
+    expect(watched[0]).toMatchObject({ userId: alice.user.id, tmdbId: 155, title: 'The Dark Knight', rating: null });
+
+    await setRating(155, 7.8);
+    expect((await db.select().from(userWatched))[0].rating).toBeCloseTo(7.8, 5);
+
+    await expect(setRating(155, 10.5)).rejects.toThrow('Invalid rating'); // out of range
+    await expect(setRating(155, 7.85)).rejects.toThrow('Invalid rating'); // more than one decimal
+    expect((await db.select().from(userWatched))[0].rating).toBeCloseTo(7.8, 5);
+
+    await setWatched(155, false);
+    expect(await db.select().from(userWatched)).toHaveLength(0);
   });
 });
 

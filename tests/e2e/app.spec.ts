@@ -222,4 +222,29 @@ test.describe('movie page', () => {
     expect(await ids()).not.toContain(27205);
     await context.close();
   });
+
+  test('signed in: marks a movie watched and rates it', async ({ browser }) => {
+    const context = await browser.newContext();
+    await context.addCookies([{ name: '__Secure-better-auth.session_token', value: await signedSessionCookie(tokens().alice), domain: 'localhost', path: '/', secure: true, httpOnly: true, sameSite: 'Lax' }]);
+    const page = await context.newPage();
+    const saved = () => page.waitForResponse((r) => r.request().method() === 'POST' && r.ok());
+
+    await page.goto('/movie/27205');
+    let done = saved();
+    await page.getByRole('button', { name: 'Mark as watched' }).click();
+    await expect(page.getByRole('button', { name: 'Remove from watched' })).toBeVisible();
+    await done;
+
+    done = saved();
+    const slider = page.getByRole('slider', { name: 'Your rating out of 10' });
+    await slider.focus();
+    await slider.press('ArrowRight'); // 5.0 → 5.1, committing a decimal rating
+    await expect(slider).toHaveValue('5.1');
+    await done;
+
+    await page.goto('/watched');
+    await expect(page.getByText('Inception')).toBeVisible();
+    await expect(page.getByText('5.1')).toBeVisible();
+    await context.close();
+  });
 });

@@ -19,6 +19,30 @@ export function isValidTmdbId(id: unknown): id is number {
   return typeof id === 'number' && Number.isSafeInteger(id) && id > 0;
 }
 
+export interface MovieSnapshot {
+  title: string;
+  posterPath: string | null;
+  releaseDate: string | null;
+  voteAverage: number | null;
+}
+
+/**
+ * The metadata stored alongside a saved title, from our catalog (or TMDB as a fallback),
+ * never from the caller. Null if the id isn't a real movie.
+ */
+export async function movieSnapshot(tmdbId: number): Promise<MovieSnapshot | null> {
+  const [row] = await db
+    .select({ title: movies.title, posterPath: movies.posterPath, releaseDate: movies.releaseDate, voteAverage: movies.voteAverage })
+    .from(movies)
+    .where(eq(movies.tmdbId, tmdbId))
+    .limit(1);
+  if (row) return row;
+
+  return getMovieDetail(tmdbId)
+    .then((m) => ({ title: m.title, posterPath: m.poster_path, releaseDate: m.release_date || null, voteAverage: m.vote_average }))
+    .catch(() => null);
+}
+
 /**
  * Save a title by id. Metadata comes from our catalog (or TMDB as a fallback),
  * never from the caller. Idempotent. Returns false if the id isn't a real movie.
@@ -26,17 +50,7 @@ export function isValidTmdbId(id: unknown): id is number {
 export async function addToWatchlist(userId: string, tmdbId: number): Promise<boolean> {
   if (!isValidTmdbId(tmdbId)) return false;
 
-  const [row] = await db
-    .select({ title: movies.title, posterPath: movies.posterPath, releaseDate: movies.releaseDate, voteAverage: movies.voteAverage })
-    .from(movies)
-    .where(eq(movies.tmdbId, tmdbId))
-    .limit(1);
-
-  const item =
-    row ??
-    (await getMovieDetail(tmdbId)
-      .then((m) => ({ title: m.title, posterPath: m.poster_path, releaseDate: m.release_date || null, voteAverage: m.vote_average }))
-      .catch(() => null));
+  const item = await movieSnapshot(tmdbId);
   if (!item) return false;
 
   await db
