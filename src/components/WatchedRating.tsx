@@ -1,24 +1,25 @@
 'use client';
 
-import { useEffect, useRef, useState, useTransition } from 'react';
+import { useState, useTransition } from 'react';
 import Link from 'next/link';
 import { Check, Eye, X } from 'lucide-react';
 import { setRating, setWatched } from '@/app/watched/actions';
 import { useViewer } from './ViewerProvider';
 
-// Matches the server's scale (src/lib/watched.ts): TMDB's 0–10, one decimal. 0 = unrated.
+// Matches the server's scale (src/lib/watched.ts): TMDB's 0–10. 0 = unrated, so 0.5 is the floor.
 const MIN = 0.5;
 const MAX = 10;
-const STEP = 0.1;
-const DEFAULT = 5; // where the thumb sits while the title is unrated
+const DEFAULT = 5; // where the rating starts while the title is unrated
 
 const BUTTON =
   'inline-flex items-center justify-center gap-2 rounded-lg bg-gray-800 px-4 py-2.5 font-medium text-white transition-colors hover:bg-gray-700 aria-pressed:bg-gray-700 aria-pressed:hover:bg-gray-600';
+const STEP_BUTTON =
+  'inline-flex h-9 min-w-9 items-center justify-center rounded-lg bg-gray-800 px-2 text-sm font-medium text-white transition-colors hover:bg-gray-700 disabled:opacity-40';
 
 /**
- * "Mark as watched" plus a 0.5–10 decimal rating, independent of the watchlist. Both are optimistic
- * and roll back if the server rejects them. Dragging the slider commits once you let go (not per step),
- * and setting a rating marks the title watched. Signed-out visitors get a sign-in link instead.
+ * "Mark as watched" plus a 0.5–10 rating with ±1 and ±0.1 buttons, independent of the watchlist. The
+ * rating only appears once the title is marked watched, and starts at 5. Both are optimistic and roll
+ * back if the server rejects them. Signed-out visitors get a sign-in link instead.
  */
 export function WatchedRating({
   tmdbId,
@@ -32,17 +33,7 @@ export function WatchedRating({
   const viewer = useViewer();
   const [watched, setWatchedState] = useState(initialWatched);
   const [rating, setRatingState] = useState<number | null>(initialRating);
-  const [draft, setDraft] = useState<number | null>(null); // live slider position before it's committed
   const [pending, startTransition] = useTransition();
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const clearTimer = () => {
-    if (timer.current) {
-      clearTimeout(timer.current);
-      timer.current = null;
-    }
-  };
-  useEffect(() => clearTimer, []);
 
   if (!viewer) {
     return (
@@ -69,38 +60,25 @@ export function WatchedRating({
   };
 
   const commitRating = (value: number | null) => {
-    const previousWatched = watched;
     const previousRating = rating;
-    setWatchedState(true);
     setRatingState(value);
     startTransition(async () => {
       try {
         await setRating(tmdbId, value);
       } catch {
-        setWatchedState(previousWatched);
         setRatingState(previousRating);
       }
     });
   };
 
-  // While dragging, show the draft; commit it shortly after the last change (and immediately on release).
-  const slide = (value: number) => {
-    setDraft(value);
-    clearTimer();
-    timer.current = setTimeout(() => {
-      setDraft(null);
-      commitRating(value);
-    }, 300);
-  };
-  const release = () => {
-    clearTimer();
-    if (draft != null) {
-      setDraft(null);
-      commitRating(draft);
-    }
+  // Nudge from the current value (or the default 5 while unrated), clamped to the scale.
+  const adjust = (delta: number) => {
+    const current = rating ?? DEFAULT;
+    const next = Math.round(Math.min(MAX, Math.max(MIN, current + delta)) * 10) / 10;
+    if (next !== rating) commitRating(next);
   };
 
-  const shown = draft ?? rating ?? DEFAULT;
+  const shown = rating ?? DEFAULT;
 
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -116,37 +94,41 @@ export function WatchedRating({
         <span>{watched ? 'Watched' : 'Mark as watched'}</span>
       </button>
 
-      <div className="flex items-center gap-2">
-        <input
-          type="range"
-          min={MIN}
-          max={MAX}
-          step={STEP}
-          value={shown}
-          onChange={(e) => slide(Number(e.target.value))}
-          onPointerUp={release}
-          onKeyUp={release}
-          onBlur={release}
-          disabled={pending}
-          aria-label="Your rating out of 10"
-          className="h-1.5 w-40 cursor-pointer appearance-none rounded-full bg-gray-700 accent-primary disabled:opacity-60"
-        />
-        <span className="w-8 text-sm tabular-nums text-gray-300" aria-live="polite">
-          {rating != null || draft != null ? shown.toFixed(1) : '—'}
-        </span>
-        <span className="text-xs text-gray-500">/10</span>
-        {rating != null && (
-          <button
-            type="button"
-            onClick={() => commitRating(null)}
-            disabled={pending}
-            aria-label="Clear rating"
-            className="rounded p-1 text-gray-400 transition-colors hover:text-white disabled:opacity-60"
-          >
-            <X className="h-4 w-4" aria-hidden="true" />
-          </button>
-        )}
-      </div>
+      {watched && (
+        <>
+          <div className="flex items-center gap-1.5">
+            <button type="button" onClick={() => adjust(-1)} disabled={pending || shown <= MIN} aria-label="Lower rating by 1" className={STEP_BUTTON}>
+              −1
+            </button>
+            <button type="button" onClick={() => adjust(-0.1)} disabled={pending || shown <= MIN} aria-label="Lower rating by 0.1" className={STEP_BUTTON}>
+              −0.1
+            </button>
+            <span
+              className={`w-12 text-center text-base tabular-nums ${rating != null ? 'text-white' : 'text-gray-400'}`}
+              aria-live="polite"
+            >
+              {shown.toFixed(1)}
+            </span>
+            <button type="button" onClick={() => adjust(0.1)} disabled={pending || shown >= MAX} aria-label="Raise rating by 0.1" className={STEP_BUTTON}>
+              +0.1
+            </button>
+            <button type="button" onClick={() => adjust(1)} disabled={pending || shown >= MAX} aria-label="Raise rating by 1" className={STEP_BUTTON}>
+              +1
+            </button>
+          </div>
+          {rating != null && (
+            <button
+              type="button"
+              onClick={() => commitRating(null)}
+              disabled={pending}
+              aria-label="Clear rating"
+              className="rounded p-1 text-gray-400 transition-colors hover:text-white disabled:opacity-60"
+            >
+              <X className="h-4 w-4" aria-hidden="true" />
+            </button>
+          )}
+        </>
+      )}
     </div>
   );
 }
