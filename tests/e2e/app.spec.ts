@@ -236,8 +236,10 @@ test.describe('movie page', () => {
     await done;
 
     done = saved();
-    await page.getByRole('button', { name: 'Raise rating by 0.1' }).click(); // 5.0 → 5.1
-    await expect(page.getByText('5.1', { exact: true })).toBeVisible();
+    const slider = page.getByRole('slider', { name: 'Your rating out of 10' });
+    await slider.focus();
+    await slider.press('ArrowRight'); // 5.0 → 5.1, saving a decimal rating
+    await expect(slider).toHaveValue('5.1');
     await done;
 
     await page.goto('/watched');
