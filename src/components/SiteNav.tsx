@@ -6,17 +6,15 @@ import { usePathname, useRouter } from 'next/navigation';
 import { Menu, Search, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { GENRE_PAGES } from '@/lib/taxonomy';
-import { useViewer } from './ViewerProvider';
 
 /**
  * Site navigation without a header bar: a floating menu button opens a drawer from the left with
- * search, every page stacked vertically (the current one marked), and account. Pages get the
- * whole screen. Only primary genres are listed; their filters are chips on the genre page itself.
+ * search, every page stacked vertically (the current one marked). Pages get the whole screen. Only
+ * primary genres are listed; their filters are chips on the genre page itself.
  */
 export function SiteNav() {
   const pathname = usePathname();
   const router = useRouter();
-  const viewer = useViewer();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const menuButton = useRef<HTMLButtonElement>(null);
@@ -128,20 +126,16 @@ export function SiteNav() {
                 Home
               </Link>
             </li>
-            {viewer && (
-              <li>
-                <Link href="/watchlist" onClick={close} className={item(pathname === '/watchlist')} aria-current={pathname === '/watchlist' ? 'page' : undefined}>
-                  Watchlist
-                </Link>
-              </li>
-            )}
-            {viewer && (
-              <li>
-                <Link href="/watched" onClick={close} className={item(pathname === '/watched')} aria-current={pathname === '/watched' ? 'page' : undefined}>
-                  Watched
-                </Link>
-              </li>
-            )}
+            <li>
+              <Link href="/watchlist" onClick={close} className={item(pathname === '/watchlist')} aria-current={pathname === '/watchlist' ? 'page' : undefined}>
+                Watchlist
+              </Link>
+            </li>
+            <li>
+              <Link href="/watched" onClick={close} className={item(pathname === '/watched')} aria-current={pathname === '/watched' ? 'page' : undefined}>
+                Watched
+              </Link>
+            </li>
             {pathname === '/search' && (
               <li>
                 <span className={item(true)} aria-current="page">Search results</span>
@@ -163,21 +157,6 @@ export function SiteNav() {
             })}
           </ul>
         </nav>
-
-        <div className="shrink-0 border-t border-gray-800 p-3">
-          {viewer ? (
-            <Link href="/account" onClick={close} className={item(pathname === '/account')} aria-current={pathname === '/account' ? 'page' : undefined}>
-              <span className="mr-3 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gray-700 text-xs font-semibold">
-                {(viewer.name || viewer.email).charAt(0).toUpperCase()}
-              </span>
-              <span className="truncate">{viewer.email}</span>
-            </Link>
-          ) : (
-            <Link href="/login" onClick={close} className="flex w-full justify-center rounded-lg bg-primary px-3 py-2.5 text-sm font-medium text-white hover:bg-red-700">
-              Sign in
-            </Link>
-          )}
-        </div>
       </div>
     </>
   );

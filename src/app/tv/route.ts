@@ -1,23 +1,10 @@
-import { allowRequest } from '@/lib/rate-limit';
-import { latestApkUrl } from '@/lib/tv-release';
-
 export const dynamic = 'force-dynamic';
 
 /**
- * GET /tv → the latest Android TV APK (type this URL into the TV's Downloader app).
- * Public on purpose: the APK contains no secrets, and using it still requires an allowlisted account.
+ * GET /tv → the Android TV APK, served from /public. A short URL to type into the TV's Downloader app
+ * (e.g. `movie-recs-tawny.vercel.app/tv`). Public on purpose: the APK contains no secrets, and installing
+ * it only points at this site.
  */
-export async function GET(request: Request) {
-  const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
-  if (!(await allowRequest(`apk:${ip}`, 30, 60 * 60 * 1000))) {
-    return new Response('Too many requests', { status: 429 });
-  }
-
-  const url = await latestApkUrl().catch(() => null);
-  if (!url) return new Response('The TV app is not available right now.', { status: 503 });
-
-  return new Response(null, {
-    status: 302,
-    headers: { Location: url, 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' },
-  });
+export function GET(request: Request) {
+  return Response.redirect(new URL('/movie-recs-tv.apk', request.url), 307);
 }

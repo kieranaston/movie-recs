@@ -11,13 +11,11 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.junit4.v2.createComposeRule
-import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.pressKey
 import androidx.compose.ui.test.requestFocus
-import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isFocusable
 import androidx.compose.ui.test.onRoot
@@ -32,7 +30,6 @@ import com.kieranaston.movierecs.ui.components.rememberFocusMemory
 import com.kieranaston.movierecs.ui.details.DetailsContent
 import com.kieranaston.movierecs.ui.focusFirstOnDown
 import com.kieranaston.movierecs.ui.genres.GenreTile
-import com.kieranaston.movierecs.ui.signin.SignInContent
 import com.kieranaston.movierecs.ui.theme.MovieTheme
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -44,20 +41,6 @@ class UiTest {
     @get:Rule val compose = createComposeRule()
 
     private val detail = MovieDetail(tmdbId = 329865, title = "Arrival", year = 2016, runtime = 116, trailerKey = "7W1m5ER3I1Y")
-
-    @Test fun signInShowsTheCodeAndQr() {
-        compose.setContent {
-            MovieTheme { SignInContent("WDJBMJHT", "https://movies.example/activate", "https://movies.example/activate?user_code=WDJBMJHT", afterDenial = false) }
-        }
-        compose.onNodeWithTag("user-code").assertTextEquals("WDJB-MJHT")
-        compose.onNodeWithText("Or visit movies.example/activate and enter").assertExists()
-        compose.onNodeWithContentDescription("QR code to sign in").assertExists()
-    }
-
-    @Test fun signInExplainsADenial() {
-        compose.setContent { MovieTheme { SignInContent("WDJBMJHT", "https://x/activate", "https://x/activate?user_code=WDJBMJHT", afterDenial = true) } }
-        compose.onNodeWithText("That request was denied. Here's a new code.").assertExists()
-    }
 
     @OptIn(ExperimentalTestApi::class)
     @Test fun detailsWiresItsActionsToTheRemote() {

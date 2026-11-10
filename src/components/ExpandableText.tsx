@@ -9,7 +9,9 @@ const BASE = 'whitespace-pre-line leading-relaxed';
  * Long text (a movie overview) clamped to a few lines, with a "Read more" toggle to reveal the
  * rest. A hidden, unclamped copy measures the full height: `scrollHeight` on a line-clamped box
  * doesn't report the clipped overflow, so clipping can't be detected from the visible element.
- * The toggle only appears when the text is actually clipped, so short text is untouched.
+ * The copy is watched for size changes (fonts, reflows) so the toggle shows even when the text
+ * only becomes clipped after the web font swaps in. The toggle appears only when the text is
+ * actually clipped, so short text is untouched.
  */
 export function ExpandableText({ text }: { text: string }) {
   const id = useId();
@@ -25,8 +27,13 @@ export function ExpandableText({ text }: { text: string }) {
     if (!el || !full) return;
     const measure = () => setClipped(full.scrollHeight > el.clientHeight + 1);
     measure();
-    window.addEventListener('resize', measure);
-    return () => window.removeEventListener('resize', measure);
+    // A web font swapping in (or any other reflow) resizes the hidden copy; re-measure so the
+    // toggle appears when the text is clipped only after the real font loads. Observing the copy
+    // covers window resizes too: it shares the visible element's width and is never clamped.
+    const observer = new ResizeObserver(measure);
+    observer.observe(full);
+    void document.fonts?.ready.then(measure);
+    return () => observer.disconnect();
   }, [text, expanded]);
 
   return (

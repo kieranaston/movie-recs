@@ -1,16 +1,12 @@
 import Image from 'next/image';
 import Link from 'next/link';
-import { redirect } from 'next/navigation';
-import { getViewer } from '@/lib/auth';
 import { getWatchlist } from '@/lib/watchlist';
 import { getPosterUrl, extractYear } from '@/lib/tmdb';
 
 export const dynamic = 'force-dynamic';
 
 export default async function WatchlistPage() {
-  const viewer = await getViewer();
-  if (!viewer) redirect(`/login?next=${encodeURIComponent('/watchlist')}`);
-  const items = await getWatchlist(viewer.id);
+  const items = await getWatchlist();
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-6">

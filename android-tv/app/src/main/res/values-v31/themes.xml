@@ -1,0 +1,9 @@
+<resources>
+    <!-- Android 12+ system splash: solid app background, no icon box, so nothing grey shows while the app starts. -->
+    <style name="Theme.MovieRecs" parent="@android:style/Theme.DeviceDefault.NoActionBar">
+        <item name="android:windowBackground">@color/background</item>
+        <item name="android:colorBackground">@color/background</item>
+        <item name="android:windowSplashScreenBackground">@color/background</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@android:color/transparent</item>
+    </style>
+</resources>

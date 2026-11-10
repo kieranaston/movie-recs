@@ -1,10 +1,8 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import Link from 'next/link';
 import { Bookmark, BookmarkCheck } from 'lucide-react';
 import { addToWatchlist, removeFromWatchlist } from '@/app/watchlist/actions';
-import { useViewer } from './ViewerProvider';
 
 export function WatchlistButton({
   tmdbId,
@@ -15,22 +13,11 @@ export function WatchlistButton({
   tmdbId: number;
   inWatchlist: boolean;
   className?: string;
-  /** Labelled button (movie page). Signed-out visitors get a sign-in link in its place. */
+  /** Labelled button (movie page); the poster-card variant is icon-only. */
   showLabel?: boolean;
 }) {
-  const viewer = useViewer();
   const [saved, setSaved] = useState(inWatchlist);
   const [pending, startTransition] = useTransition();
-
-  if (!viewer) {
-    if (!showLabel) return null;
-    return (
-      <Link href={`/login?next=${encodeURIComponent(`/movie/${tmdbId}`)}`} className={className}>
-        <Bookmark className="h-4 w-4" aria-hidden="true" />
-        <span>Sign in to save</span>
-      </Link>
-    );
-  }
 
   const toggle = (e: React.MouseEvent) => {
     e.preventDefault();

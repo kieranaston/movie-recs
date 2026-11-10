@@ -28,7 +28,6 @@ export interface CatalogMovie {
   /** Only the keywords/companies some rule or filter uses (keeps the cached catalog small). */
   keywordTmdbIds: number[];
   companyTmdbIds: number[];
-  available: boolean;
   /** Minutes; 0/null = unknown. */
   runtime: number | null;
 }
@@ -117,7 +116,7 @@ const loadCatalog = unstable_cache(
         id: movies.id, tmdbId: movies.tmdbId, title: movies.title, releaseDate: movies.releaseDate,
         voteAverage: movies.voteAverage, voteCount: movies.voteCount,
         posterPath: movies.posterPath, originalLanguage: movies.originalLanguage,
-        availableAnywhere: movies.availableAnywhere, runtime: movies.runtime,
+        runtime: movies.runtime,
         imdbRating: movies.imdbRating, imdbVotes: movies.imdbVotes,
       }).from(movies),
       db.select({ movieId: movieGenres.movieId, tmdbId: genres.tmdbId })
@@ -152,11 +151,10 @@ const loadCatalog = unstable_cache(
         genreTmdbIds: gMap.get(m.id) ?? [],
         keywordTmdbIds: kMap.get(m.id) ?? [],
         companyTmdbIds: cMap.get(m.id) ?? [],
-        available: m.availableAnywhere,
         runtime: m.runtime,
       }));
   },
-  ['catalog-v6'],
+  ['catalog-v7'],
   { revalidate: 3600, tags: ['catalog'] }
 );
 
@@ -184,7 +182,13 @@ function matchesFilter(m: CatalogMovie, filter: GenreFilter | undefined, target:
   return m.originalLanguage === target;
 }
 
-/** Released within the last RECENT_MAX_MONTHS (unreleased titles are already dropped as unavailable). */
+/** Already out (drops announced/unreleased titles). */
+const isReleased = (m: CatalogMovie) => {
+  const months = S.monthsSince(m.releaseDate);
+  return months != null && months >= 0;
+};
+
+/** Released within the last RECENT_MAX_MONTHS (unreleased titles are already dropped). */
 const isRecent = (m: CatalogMovie) => {
   const months = S.monthsSince(m.releaseDate);
   return months != null && months >= 0 && months < S.RECENT_MAX_MONTHS;
@@ -211,7 +215,7 @@ async function compute(genreId?: number, filter?: GenreFilter) {
     .filter((m) => (genreId == null || m.genreTmdbIds.includes(genreId)))
     .filter((m) => matchesFilter(m, filter, target))
     .filter((m) => S.yearInRange(m.releaseDate))
-    .filter((m) => m.available) // drop unreleased / theatrical-only titles
+    .filter(isReleased) // drop unreleased / announced titles
     .filter((m) => isFeature(m) && !isSpecial(m))
     .map((m) => {
       const wrVal = S.wr(m.voteAverage, m.voteCount, m.releaseDate);

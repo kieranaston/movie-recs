@@ -3,8 +3,6 @@ import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
 import { SiteNav } from '@/components/SiteNav';
 import { Footer } from '@/components/Footer';
-import { ViewerProvider } from '@/components/ViewerProvider';
-import { getViewer } from '@/lib/auth';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -46,24 +44,21 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
-export default async function RootLayout({
+export default function RootLayout({
   children,
   modal,
 }: Readonly<{ children: React.ReactNode; modal: React.ReactNode }>) {
-  const viewer = await getViewer();
   return (
     <html
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-screen flex flex-col bg-background text-foreground">
-        <ViewerProvider viewer={viewer && { email: viewer.email, name: viewer.name, image: viewer.image }}>
-          <SiteNav />
-          {/* No header bar: pages start just below the floating menu button and use the whole screen. */}
-          <main className="flex-1 pt-16">{children}</main>
-          {modal /* movie popup (app/@modal), shown over the page */}
-          <Footer />
-        </ViewerProvider>
+        <SiteNav />
+        {/* No header bar: pages start just below the floating menu button and use the whole screen. */}
+        <main className="flex-1 pt-16">{children}</main>
+        {modal /* movie popup (app/@modal), shown over the page */}
+        <Footer />
       </body>
     </html>
   );

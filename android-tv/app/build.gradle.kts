@@ -117,7 +117,6 @@ dependencies {
     implementation(libs.okhttp)
     implementation(libs.coil.compose)
     implementation(libs.coil.network.okhttp)
-    implementation(libs.zxing.core)
 
     testImplementation(libs.junit)
     testImplementation(libs.coroutines.test)

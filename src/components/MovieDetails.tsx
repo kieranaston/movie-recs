@@ -11,7 +11,6 @@ import { TrailerButton } from '@/components/TrailerButton';
 import { ExpandableText } from '@/components/ExpandableText';
 import { getWatchlistIds } from '@/lib/watchlist';
 import { getWatchedRatings } from '@/lib/watched';
-import { getViewer } from '@/lib/auth';
 
 /**
  * A movie's details. Rendered as the full /movie/[id] page and inside the popup that opens over
@@ -40,11 +39,10 @@ export async function MovieDetails({ params }: { params: Promise<{ id: string }>
   }
 
   const trailerKey = getTrailerKey(movie);
-  const viewer = await getViewer();
-  const inWatchlist = viewer ? (await getWatchlistIds(viewer.id)).includes(movieId) : false;
-  const watchedRatings = viewer ? await getWatchedRatings(viewer.id) : null;
-  const watched = watchedRatings?.has(movieId) ?? false;
-  const rating = watchedRatings?.get(movieId) ?? null;
+  const inWatchlist = (await getWatchlistIds()).includes(movieId);
+  const watchedRatings = await getWatchedRatings();
+  const watched = watchedRatings.has(movieId);
+  const rating = watchedRatings.get(movieId) ?? null;
 
   const genres = movie.genres?.map((g) => g.name).join(', ') ?? 'N/A';
   const year = extractYear(movie.release_date);

@@ -19,8 +19,7 @@ export type TestDb = Awaited<ReturnType<typeof createTestDb>>;
 /** Empty every app table (keeps the schema). */
 export async function resetDb(db: TestDb) {
   await db.execute(sql`
-    truncate table "user", session, account, verification, device_code, rate_limit,
-      user_watchlist, user_watched, api_rate_limit, watchlist, movie_watch_providers, watch_providers,
+    truncate table user_watchlist, user_watched, api_rate_limit,
       movie_companies, production_companies, movie_keywords, keywords, movie_genres, genres, movies
     restart identity cascade
   `);

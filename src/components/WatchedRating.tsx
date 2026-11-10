@@ -1,10 +1,8 @@
 'use client';
 
 import { useEffect, useRef, useState, useTransition } from 'react';
-import Link from 'next/link';
 import { Check, Eye, X } from 'lucide-react';
 import { setRating, setWatched } from '@/app/watched/actions';
-import { useViewer } from './ViewerProvider';
 
 // Matches the server's scale (src/lib/watched.ts): TMDB's 0–10. 0 = unrated, so 0.5 is the floor.
 const MIN = 0.5;
@@ -18,8 +16,7 @@ const BUTTON =
 /**
  * "Mark as watched" plus a 0.5–10 rating slider, independent of the watchlist. The slider only appears
  * once the title is marked watched. It moves locally and saves once when you let go (not per step), so
- * it never waits on the server mid-drag; a failed save rolls the value back. Signed-out visitors get a
- * sign-in link instead.
+ * it never waits on the server mid-drag; a failed save rolls the value back.
  */
 export function WatchedRating({
   tmdbId,
@@ -30,7 +27,6 @@ export function WatchedRating({
   watched: boolean;
   rating: number | null;
 }) {
-  const viewer = useViewer();
   const [watched, setWatchedState] = useState(initialWatched);
   const [rating, setRatingState] = useState<number | null>(initialRating);
   const [draft, setDraft] = useState<number | null>(null); // live slider position before it's saved
@@ -45,15 +41,6 @@ export function WatchedRating({
     }
   };
   useEffect(() => clearTimer, []);
-
-  if (!viewer) {
-    return (
-      <Link href={`/login?next=${encodeURIComponent(`/movie/${tmdbId}`)}`} className={BUTTON}>
-        <Eye className="h-4 w-4" aria-hidden="true" />
-        <span>Sign in to track</span>
-      </Link>
-    );
-  }
 
   const toggleWatched = () => {
     const next = !watched;

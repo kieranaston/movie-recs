@@ -1,4 +1,4 @@
-import { error, requireUser, parseGenre, parseInt0, toApiCard } from '@/lib/api';
+import { error, guard, parseGenre, parseInt0, toApiCard } from '@/lib/api';
 import { getBrowsePage } from '@/lib/browse';
 
 /**
@@ -7,8 +7,8 @@ import { getBrowsePage } from '@/lib/browse';
  * Filter    → { mode: 'list', movies, total } (paged with offset/limit)
  */
 export async function GET(request: Request) {
-  const viewer = await requireUser(request);
-  if (viewer instanceof Response) return viewer;
+  const denied = await guard(request);
+  if (denied) return denied;
 
   const params = new URL(request.url).searchParams;
   const genre = parseGenre(params.get('genre'));

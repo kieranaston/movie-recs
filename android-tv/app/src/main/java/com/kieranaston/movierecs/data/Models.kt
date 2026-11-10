@@ -1,6 +1,5 @@
 package com.kieranaston.movierecs.data
 
-import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 // Mirrors the JSON from the website's /api/v1 routes (src/app/api/v1 in the web project).
@@ -38,19 +37,6 @@ data class MoviePage(val movies: List<Movie>, val total: Int = 0)
 data class SearchResponse(val movies: List<Movie>, val page: Int, val totalPages: Int)
 
 @Serializable
-data class Provider(val name: String, val logoPath: String? = null)
-
-@Serializable
-data class Providers(
-    val stream: List<Provider> = emptyList(),
-    val free: List<Provider> = emptyList(),
-    val rent: List<Provider> = emptyList(),
-    val buy: List<Provider> = emptyList(),
-) {
-    val isEmpty get() = stream.isEmpty() && free.isEmpty() && rent.isEmpty() && buy.isEmpty()
-}
-
-@Serializable
 data class MovieDetail(
     val tmdbId: Int,
     val title: String,
@@ -66,7 +52,6 @@ data class MovieDetail(
     val trailerKey: String? = null,
     val directors: List<String> = emptyList(),
     val cast: List<CastMember> = emptyList(),
-    val providers: Providers = Providers(),
 ) {
     fun toMovie() = Movie(tmdbId, title, year, posterPath, voteAverage)
 }
@@ -79,26 +64,4 @@ object TmdbImages {
     private const val BASE = "https://image.tmdb.org/t/p"
     fun poster(path: String?) = path?.let { "$BASE/w342$it" }
     fun backdrop(path: String?) = path?.let { "$BASE/w1280$it" }
-    fun logo(path: String?) = path?.let { "$BASE/w92$it" }
 }
-
-// ---------- Auth (RFC 8628 device flow, served by Better Auth at /api/auth) ----------
-
-@Serializable
-data class DeviceCode(
-    @SerialName("device_code") val deviceCode: String,
-    @SerialName("user_code") val userCode: String,
-    @SerialName("verification_uri") val verificationUri: String,
-    @SerialName("verification_uri_complete") val verificationUriComplete: String,
-    @SerialName("expires_in") val expiresIn: Int,
-    val interval: Int = 5,
-)
-
-@Serializable
-data class OAuthError(val error: String, @SerialName("error_description") val description: String? = null)
-
-@Serializable
-data class TokenGrant(@SerialName("access_token") val accessToken: String)
-
-@Serializable
-data class Me(val email: String, val name: String = "")

@@ -1,10 +1,10 @@
-import { error, requireUser, parseInt0, toApiCard } from '@/lib/api';
+import { error, guard, parseInt0, toApiCard } from '@/lib/api';
 import { searchMovies } from '@/lib/tmdb';
 
 /** GET /api/v1/search?q=<text>&page=1 → { movies, page, totalPages } */
 export async function GET(request: Request) {
-  const viewer = await requireUser(request);
-  if (viewer instanceof Response) return viewer;
+  const denied = await guard(request);
+  if (denied) return denied;
 
   const params = new URL(request.url).searchParams;
   const q = params.get('q')?.trim().slice(0, 100) ?? '';

@@ -49,7 +49,7 @@ import com.kieranaston.movierecs.ui.search.SearchScreen
 import com.kieranaston.movierecs.ui.theme.Dimens
 import com.kieranaston.movierecs.ui.watchlist.WatchlistScreen
 
-private enum class TopTab(val label: String) { Home("Home"), Genres("Genres"), Search("Search"), Watchlist("Watchlist"), Account("Account") }
+private enum class TopTab(val label: String) { Home("Home"), Genres("Genres"), Search("Search"), Watchlist("Watchlist"), About("About") }
 
 /** Top-level tabs. Back from content jumps to the tabs; Back on a tab returns to Home; Back on Home exits. */
 @OptIn(ExperimentalComposeUiApi::class)
@@ -104,7 +104,7 @@ fun MainScreen(onOpenMovie: (Movie) -> Unit, onOpenGenre: (Genre) -> Unit) {
                 TopTab.Genres -> GenresScreen(memory, onOpenGenre)
                 TopTab.Search -> SearchScreen(memory, onOpenMovie)
                 TopTab.Watchlist -> WatchlistScreen(memory, onOpenMovie)
-                TopTab.Account -> AboutScreen()
+                TopTab.About -> AboutScreen()
             }
         }
     }

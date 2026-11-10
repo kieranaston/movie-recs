@@ -35,7 +35,7 @@ class WatchlistRepositoryTest {
 
     @Before fun setUp() {
         server.start()
-        val api = Api(server.url("/").toString(), OkHttpClient(), token = { "tok" }, onUnauthorized = {})
+        val api = Api(server.url("/").toString(), OkHttpClient())
         repo = WatchlistRepository(api, scope)
     }
 

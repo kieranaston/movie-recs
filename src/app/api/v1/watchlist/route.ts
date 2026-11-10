@@ -1,11 +1,11 @@
-import { requireUser, toApiCard } from '@/lib/api';
+import { guard, toApiCard } from '@/lib/api';
 import { getWatchlist } from '@/lib/watchlist';
 
-/** GET /api/v1/watchlist → the signed-in user's { movies }, newest first. */
+/** GET /api/v1/watchlist → { movies }, newest first. */
 export async function GET(request: Request) {
-  const viewer = await requireUser(request);
-  if (viewer instanceof Response) return viewer;
+  const denied = await guard(request);
+  if (denied) return denied;
 
-  const items = await getWatchlist(viewer.id);
+  const items = await getWatchlist();
   return Response.json({ movies: items.map(toApiCard) });
 }

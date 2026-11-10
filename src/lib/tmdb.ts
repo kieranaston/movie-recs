@@ -46,7 +46,6 @@ export interface TMDBMovieDetail extends TMDBMovie {
   production_countries: Array<{ iso_3166_1: string; name: string }>;
   spoken_languages: Array<{ english_name: string; iso_639_1: string; name: string }>;
   videos?: { results: TMDBVideo[] };
-  'watch/providers'?: { results: TMDBWatchProvidersResponse['results'] };
   credits?: { cast: TMDBCastMember[]; crew: TMDBCrewMember[] };
 }
 
@@ -62,29 +61,6 @@ export interface TMDBCrewMember {
   id: number;
   name: string;
   job: string;
-}
-
-export interface TMDBWatchProvider {
-  display_priority: number;
-  logo_path: string;
-  provider_name: string;
-  provider_id: number;
-}
-
-export interface TMDBRegionProviders {
-  link: string;
-  flatrate?: TMDBWatchProvider[];
-  rent?: TMDBWatchProvider[];
-  buy?: TMDBWatchProvider[];
-  free?: TMDBWatchProvider[];
-  ads?: TMDBWatchProvider[];
-}
-
-export interface TMDBWatchProvidersResponse {
-  id: number;
-  results: {
-    [region: string]: TMDBRegionProviders | undefined;
-  };
 }
 
 export interface TMDBGenre {
@@ -135,7 +111,7 @@ export async function searchMovies(query: string, page = 1): Promise<TMDBSearchR
 }
 
 export async function getMovieDetail(movieId: number): Promise<TMDBMovieDetail> {
-  return fetchTMDB<TMDBMovieDetail>(`/movie/${movieId}`, { append_to_response: 'watch/providers,videos,credits' });
+  return fetchTMDB<TMDBMovieDetail>(`/movie/${movieId}`, { append_to_response: 'videos,credits' });
 }
 
 /** Best available YouTube trailer/teaser key, or null. */
@@ -170,10 +146,6 @@ export function getBackdropUrl(backdropPath: string | null, size: 'w300' | 'w780
     return '/placeholder-backdrop.png';
   }
   return `${TMDB_IMAGE_BASE_URL}/${size}${backdropPath}`;
-}
-
-export function getProviderLogoUrl(logoPath: string): string {
-  return `${TMDB_IMAGE_BASE_URL}/original${logoPath}`;
 }
 
 export function extractYear(releaseDate: string): string {

@@ -21,7 +21,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
@@ -46,7 +45,6 @@ import androidx.tv.material3.Text
 import coil3.compose.AsyncImage
 import com.kieranaston.movierecs.data.Api
 import com.kieranaston.movierecs.data.MovieDetail
-import com.kieranaston.movierecs.data.Provider
 import com.kieranaston.movierecs.data.TmdbImages
 import com.kieranaston.movierecs.ui.components.AppIcons
 import com.kieranaston.movierecs.ui.components.ErrorState
@@ -56,7 +54,6 @@ import com.kieranaston.movierecs.ui.components.Placeholder
 import com.kieranaston.movierecs.ui.components.app
 import com.kieranaston.movierecs.ui.components.load
 import com.kieranaston.movierecs.ui.theme.Dimens
-import com.kieranaston.movierecs.ui.theme.Palette
 import kotlinx.coroutines.launch
 
 class DetailsViewModel(private val api: Api, private val tmdbId: Int) : ViewModel() {
@@ -156,9 +153,6 @@ fun DetailsContent(
                     Text(if (inWatchlist) "In Watchlist" else "Add to Watchlist")
                 }
             }
-
-            Spacer(Modifier.weight(1f))
-            Providers(movie)
         }
     }
     LaunchedEffect(movie.tmdbId) { runCatching { primary.requestFocus() } }
@@ -189,45 +183,6 @@ private fun Credits(movie: MovieDetail) {
 
 /** 116 → "1h 56m", 45 → "45m". */
 private fun formatRuntime(minutes: Int) = if (minutes >= 60) "${minutes / 60}h ${minutes % 60}m" else "${minutes}m"
-
-@Composable
-private fun Providers(movie: MovieDetail) {
-    val p = movie.providers
-    val muted = MaterialTheme.colorScheme.onSurfaceVariant
-    if (p.isEmpty) {
-        Text("Not streaming in Canada right now.", style = MaterialTheme.typography.labelMedium, color = muted)
-    } else {
-        Row(horizontalArrangement = Arrangement.spacedBy(28.dp)) {
-            ProviderGroup("Stream", p.stream)
-            ProviderGroup("Free", p.free)
-            ProviderGroup("Rent", p.rent)
-            ProviderGroup("Buy", p.buy)
-        }
-    }
-    Spacer(Modifier.height(10.dp))
-    Text("Where to watch in Canada · data from JustWatch", style = MaterialTheme.typography.labelSmall, color = muted)
-}
-
-@Composable
-private fun ProviderGroup(label: String, providers: List<Provider>) {
-    if (providers.isEmpty()) return
-    Column {
-        Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Spacer(Modifier.height(6.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            providers.take(4).forEach {
-                AsyncImage(
-                    model = TmdbImages.logo(it.logoPath),
-                    contentDescription = it.name,
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(Palette.SurfaceVariant),
-                )
-            }
-        }
-    }
-}
 
 @Composable
 private fun DetailsPlaceholder() {

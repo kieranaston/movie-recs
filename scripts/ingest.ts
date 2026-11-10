@@ -5,10 +5,8 @@
  *   1. genres   - upsert the TMDB genre list
  *   2. pool     - pull /discover slices, upsert movies + movie_genres
  *   3. metadata - fetch keywords + production companies (facet lexicon)
- *   4. providers - CA streaming availability: new titles, plus re-checks (weekly for
- *                  unavailable/recent titles, monthly for the rest)
- *   5. imdb     - IMDb ratings (public dataset) for every movie with an IMDb id
- *   6. stats    - report C (vote-weighted mean)
+ *   4. imdb     - IMDb ratings (public dataset) for every movie with an IMDb id
+ *   5. stats    - report C (vote-weighted mean)
  *
  * Usage:
  *   npm run ingest
@@ -23,8 +21,8 @@ import { Readable } from 'node:stream';
 import { createGunzip } from 'node:zlib';
 import { createInterface } from 'node:readline';
 import * as schema from '../src/db/schema';
-import type { TMDBMovie, TMDBMovieDetail, TMDBRegionProviders, TMDBWatchProvider, TMDBWatchProvidersResponse } from '../src/lib/tmdb';
-import { genres, movieCompanies, movieGenres, movieKeywords, movieWatchProviders, movies, keywords, productionCompanies, watchProviders } from '../src/db/schema';
+import type { TMDBMovie, TMDBMovieDetail } from '../src/lib/tmdb';
+import { genres, movieCompanies, movieGenres, movieKeywords, movies, keywords, productionCompanies } from '../src/db/schema';
 
 // ---------- env ----------
 function loadEnv(path = '.env') {
@@ -57,7 +55,6 @@ const argVal = (name: string, def: number) => {
 const LIMIT = argVal('--limit', 0);            // 0 = no cap
 const PAGES = argVal('--pages', 0);            // 0 = per-slice defaults
 const SKIP_METADATA = args.includes('--skip-metadata');
-const SKIP_PROVIDERS = args.includes('--skip-providers');
 const SKIP_IMDB = args.includes('--skip-imdb');
 
 const TMDB = 'https://api.themoviedb.org/3';
@@ -339,109 +336,6 @@ async function ingestMetadata() {
   }
 }
 
-// ---------- stage 3b: streaming availability (CA) ----------
-const PROVIDER_TYPES = ['flatrate', 'free', 'ads', 'rent', 'buy'] as const satisfies readonly (keyof TMDBRegionProviders)[];
-
-// Availability drifts (theatrical → streaming, titles leaving services), so re-check on a schedule:
-// titles that are unavailable or recent change most often; everything else is re-checked monthly.
-const RECHECK_VOLATILE_DAYS = 7;
-const RECHECK_ALL_DAYS = 30;
-const RECENT_YEARS = 2;
-
-async function ingestProviders() {
-  const LIMIT = argVal('--providers-limit', 0);
-  const todo = await db.execute<{ id: number; tmdb_id: number }>(sql`
-    select id, tmdb_id from ${movies}
-    where providers_fetched_at is null
-       or providers_fetched_at < now() - make_interval(days => ${RECHECK_ALL_DAYS})
-       or (
-         providers_fetched_at < now() - make_interval(days => ${RECHECK_VOLATILE_DAYS})
-         and (not available_anywhere
-              or release_date >= to_char(current_date - make_interval(years => ${RECENT_YEARS}), 'YYYY-MM-DD'))
-       )
-    order by providers_fetched_at asc nulls first, vote_count desc nulls last
-    ${LIMIT ? sql`limit ${LIMIT}` : sql``}
-  `);
-  const rows = todo as unknown as { id: number; tmdb_id: number }[];
-  console.log(`[providers] ${rows.length} movies to check`);
-  if (!rows.length) return;
-
-  const BATCH = 200;
-  for (let start = 0; start < rows.length; start += BATCH) {
-    const batch = rows.slice(start, start + BATCH);
-    const results = await mapLimit(batch, 8, async (r) => {
-      const d = await tmdbGet<TMDBWatchProvidersResponse>(`/movie/${r.tmdb_id}/watch/providers`);
-      return { r, regions: d.results ?? {} };
-    });
-
-    const provMap = new Map<number, TMDBWatchProvider>();
-    const perMovie: { movieId: number; entries: { tmdbId: number; type: string }[]; available: boolean }[] = [];
-    for (const { r, regions } of results) {
-      const entries: { tmdbId: number; type: string }[] = [];
-      const seen = new Set<string>();
-      const ca = regions.CA;
-      if (ca) {
-        for (const type of PROVIDER_TYPES) {
-          for (const p of ca[type] ?? []) {
-            provMap.set(p.provider_id, p);
-            const key = `${p.provider_id}:${type}`;
-            if (!seen.has(key)) { seen.add(key); entries.push({ tmdbId: p.provider_id, type }); }
-          }
-        }
-      }
-      // "Released / watchable somewhere" = any region offers any of the types.
-      const available = Object.values(regions).some((reg) =>
-        PROVIDER_TYPES.some((t) => (reg?.[t]?.length ?? 0) > 0)
-      );
-      perMovie.push({ movieId: r.id, entries, available });
-    }
-
-    if (provMap.size) {
-      await db
-        .insert(watchProviders)
-        .values([...provMap.values()].map((p) => ({
-          tmdbId: p.provider_id, providerName: p.provider_name,
-          logoPath: p.logo_path ?? null, displayPriority: p.display_priority ?? null,
-        })))
-        .onConflictDoUpdate({
-          target: watchProviders.tmdbId,
-          set: {
-            providerName: sql`excluded.provider_name`,
-            logoPath: sql`excluded.logo_path`,
-            displayPriority: sql`excluded.display_priority`,
-          },
-        });
-    }
-
-    const provIds = [...provMap.keys()];
-    const provLocal = provIds.length
-      ? await db.select({ id: watchProviders.id, tmdbId: watchProviders.tmdbId }).from(watchProviders).where(inArray(watchProviders.tmdbId, provIds))
-      : [];
-    const provIdMap = new Map(provLocal.map((p) => [p.tmdbId, p.id]));
-
-    const movieIds = perMovie.map((p) => p.movieId);
-    await db.delete(movieWatchProviders).where(inArray(movieWatchProviders.movieId, movieIds));
-    const rels: { movieId: number; watchProviderId: number; region: string; providerType: string }[] = [];
-    for (const p of perMovie) {
-      for (const e of p.entries) {
-        const pid = provIdMap.get(e.tmdbId);
-        if (pid) rels.push({ movieId: p.movieId, watchProviderId: pid, region: 'CA', providerType: e.type });
-      }
-    }
-    if (rels.length) await db.insert(movieWatchProviders).values(rels);
-
-    const availIds = perMovie.filter((p) => p.available).map((p) => p.movieId);
-    const unavailIds = perMovie.filter((p) => !p.available).map((p) => p.movieId);
-    if (availIds.length) {
-      await db.update(movies).set({ providersFetchedAt: new Date(), availableAnywhere: true }).where(inArray(movies.id, availIds));
-    }
-    if (unavailIds.length) {
-      await db.update(movies).set({ providersFetchedAt: new Date(), availableAnywhere: false }).where(inArray(movies.id, unavailIds));
-    }
-    console.log(`[providers] ${Math.min(start + BATCH, rows.length)}/${rows.length} (rels ${rels.length}, available ${availIds.length})`);
-  }
-}
-
 // ---------- stage 3c: IMDb ratings ----------
 // IMDb's public dataset (personal/non-commercial use): ~8 MB, refreshed daily. IMDb has far more
 // voters than TMDB, so it's the main defence against fan-inflated scores. Re-read every run.
@@ -498,7 +392,6 @@ async function reportStats() {
   await ingestGenres();
   await ingestPool();
   if (!SKIP_METADATA) await ingestMetadata();
-  if (!SKIP_PROVIDERS) await ingestProviders();
   if (!SKIP_IMDB) await ingestImdbRatings();
   await reportStats();
   console.timeEnd('ingest');

@@ -1,24 +1,18 @@
-import { error, requireUser, parseId } from '@/lib/api';
-import { getMovieDetail, getTrailerKey, type TMDBWatchProvider } from '@/lib/tmdb';
+import { error, guard, parseId } from '@/lib/api';
+import { getMovieDetail, getTrailerKey } from '@/lib/tmdb';
 import { getWatchlistIds } from '@/lib/watchlist';
 import { yearOf } from '@/lib/scoring';
 
-const providers = (list: TMDBWatchProvider[] = []) =>
-  [...list]
-    .sort((a, b) => a.display_priority - b.display_priority)
-    .map((p) => ({ name: p.provider_name, logoPath: p.logo_path }));
-
 /** GET /api/v1/movies/<tmdbId> → full detail for the details screen. */
 export async function GET(request: Request, ctx: RouteContext<'/api/v1/movies/[id]'>) {
-  const viewer = await requireUser(request);
-  if (viewer instanceof Response) return viewer;
+  const denied = await guard(request);
+  if (denied) return denied;
 
   const tmdbId = parseId((await ctx.params).id);
   if (!tmdbId) return error(404, 'Not found');
 
   try {
-    const [movie, saved] = await Promise.all([getMovieDetail(tmdbId), getWatchlistIds(viewer.id)]);
-    const ca = movie['watch/providers']?.results.CA;
+    const [movie, saved] = await Promise.all([getMovieDetail(tmdbId), getWatchlistIds()]);
 
     return Response.json({
       tmdbId: movie.id,
@@ -38,13 +32,6 @@ export async function GET(request: Request, ctx: RouteContext<'/api/v1/movies/[i
         .sort((a, b) => a.order - b.order)
         .slice(0, 15)
         .map((c) => ({ name: c.name, character: c.character || null, profilePath: c.profile_path })),
-      // Canada, grouped the way the website shows them. Data via JustWatch.
-      providers: {
-        stream: providers(ca?.flatrate),
-        free: providers([...(ca?.free ?? []), ...(ca?.ads ?? [])]),
-        rent: providers(ca?.rent),
-        buy: providers(ca?.buy),
-      },
       inWatchlist: saved.includes(movie.id),
     });
   } catch {

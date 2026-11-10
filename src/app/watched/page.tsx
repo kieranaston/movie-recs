@@ -1,17 +1,13 @@
 import Image from 'next/image';
 import Link from 'next/link';
-import { redirect } from 'next/navigation';
 import { Star } from 'lucide-react';
-import { getViewer } from '@/lib/auth';
 import { getWatched } from '@/lib/watched';
 import { getPosterUrl, extractYear } from '@/lib/tmdb';
 
 export const dynamic = 'force-dynamic';
 
 export default async function WatchedPage() {
-  const viewer = await getViewer();
-  if (!viewer) redirect(`/login?next=${encodeURIComponent('/watched')}`);
-  const items = await getWatched(viewer.id);
+  const items = await getWatched();
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-6">

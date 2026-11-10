@@ -57,7 +57,7 @@ jobs:
           distribution: temurin
           java-version: 21
       - uses: gradle/actions/setup-gradle@v6
-      # Verifies the minified release build; publishing (with the real signing key) is android-release.yml.
+      # Verifies the minified release build (unsigned in CI; real signing happens locally).
       - run: ./gradlew lintDebug testDebugUnitTest assembleRelease -PverifyOnly=true --console=plain
       - uses: actions/upload-artifact@v7
         if: failure()

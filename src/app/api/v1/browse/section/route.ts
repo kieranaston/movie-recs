@@ -1,11 +1,11 @@
-import { error, requireUser, parseGenre, parseInt0, toApiCard } from '@/lib/api';
+import { error, guard, parseGenre, parseInt0, toApiCard } from '@/lib/api';
 import { getSectionMovies } from '@/lib/browse';
 import { SECTIONS, type SectionId } from '@/lib/taxonomy';
 
 /** GET /api/v1/browse/section?section=<id>&genre=<slug>&offset=20&limit=20 → { movies, total } */
 export async function GET(request: Request) {
-  const viewer = await requireUser(request);
-  if (viewer instanceof Response) return viewer;
+  const denied = await guard(request);
+  if (denied) return denied;
 
   const params = new URL(request.url).searchParams;
   const sectionId = params.get('section') as SectionId | null;

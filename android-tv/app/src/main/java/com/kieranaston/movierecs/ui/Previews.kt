@@ -15,14 +15,11 @@ import androidx.tv.material3.Surface
 import androidx.tv.material3.SurfaceDefaults
 import com.kieranaston.movierecs.data.Movie
 import com.kieranaston.movierecs.data.MovieDetail
-import com.kieranaston.movierecs.data.Provider
-import com.kieranaston.movierecs.data.Providers
 import com.kieranaston.movierecs.ui.components.MovieRow
 import com.kieranaston.movierecs.ui.components.PosterCard
 import com.kieranaston.movierecs.ui.components.rememberFocusMemory
 import com.kieranaston.movierecs.ui.details.DetailsContent
 import com.kieranaston.movierecs.ui.genres.GenreTile
-import com.kieranaston.movierecs.ui.signin.SignInContent
 import com.kieranaston.movierecs.ui.theme.Dimens
 import com.kieranaston.movierecs.ui.theme.MovieTheme
 
@@ -49,7 +46,6 @@ private val sampleDetail = MovieDetail(
     voteAverage = 7.6,
     genres = listOf("Drama", "Science Fiction", "Mystery"),
     trailerKey = "7W1m5ER3I1Y",
-    providers = Providers(stream = listOf(Provider("Netflix")), rent = listOf(Provider("Apple TV"), Provider("Google Play"))),
 )
 
 @Composable
@@ -91,10 +87,4 @@ private fun GenreTilesPreview() = Frame {
 @Composable
 private fun DetailsPreview() = Frame {
     DetailsContent(sampleDetail, inWatchlist = false, onToggleWatchlist = {}, onPlayTrailer = {})
-}
-
-@Preview(name = "Sign in", device = Devices.TV_1080p)
-@Composable
-private fun SignInPreview() = Frame {
-    SignInContent("WDJBMJHT", "https://movie-recs-tawny.vercel.app/activate", "https://movie-recs-tawny.vercel.app/activate?user_code=WDJBMJHT", afterDenial = false)
 }

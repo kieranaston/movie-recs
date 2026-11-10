@@ -1,18 +1,18 @@
 import { cache } from 'react';
-import { and, desc, eq } from 'drizzle-orm';
+import { desc, eq } from 'drizzle-orm';
 import { db } from '@/db';
 import { movies, userWatchlist, type WatchlistItem } from '@/db/schema';
 import { getMovieDetail } from './tmdb';
 
-// Every function takes the owner's user id: a watchlist is only ever read or written for one user.
+// Single-profile app: there is one watchlist, shared by every surface (site + TV).
 
-export const getWatchlistIds = cache(async (userId: string): Promise<number[]> => {
-  const rows = await db.select({ tmdbId: userWatchlist.tmdbId }).from(userWatchlist).where(eq(userWatchlist.userId, userId));
+export const getWatchlistIds = cache(async (): Promise<number[]> => {
+  const rows = await db.select({ tmdbId: userWatchlist.tmdbId }).from(userWatchlist);
   return rows.map((r) => r.tmdbId);
 });
 
-export const getWatchlist = cache(async (userId: string): Promise<WatchlistItem[]> => {
-  return db.select().from(userWatchlist).where(eq(userWatchlist.userId, userId)).orderBy(desc(userWatchlist.addedAt));
+export const getWatchlist = cache(async (): Promise<WatchlistItem[]> => {
+  return db.select().from(userWatchlist).orderBy(desc(userWatchlist.addedAt));
 });
 
 export function isValidTmdbId(id: unknown): id is number {
@@ -47,7 +47,7 @@ export async function movieSnapshot(tmdbId: number): Promise<MovieSnapshot | nul
  * Save a title by id. Metadata comes from our catalog (or TMDB as a fallback),
  * never from the caller. Idempotent. Returns false if the id isn't a real movie.
  */
-export async function addToWatchlist(userId: string, tmdbId: number): Promise<boolean> {
+export async function addToWatchlist(tmdbId: number): Promise<boolean> {
   if (!isValidTmdbId(tmdbId)) return false;
 
   const item = await movieSnapshot(tmdbId);
@@ -55,13 +55,13 @@ export async function addToWatchlist(userId: string, tmdbId: number): Promise<bo
 
   await db
     .insert(userWatchlist)
-    .values({ userId, tmdbId, ...item })
-    .onConflictDoNothing({ target: [userWatchlist.userId, userWatchlist.tmdbId] });
+    .values({ tmdbId, ...item })
+    .onConflictDoNothing({ target: userWatchlist.tmdbId });
   return true;
 }
 
 /** Idempotent. */
-export async function removeFromWatchlist(userId: string, tmdbId: number): Promise<void> {
+export async function removeFromWatchlist(tmdbId: number): Promise<void> {
   if (!isValidTmdbId(tmdbId)) return;
-  await db.delete(userWatchlist).where(and(eq(userWatchlist.userId, userId), eq(userWatchlist.tmdbId, tmdbId)));
+  await db.delete(userWatchlist).where(eq(userWatchlist.tmdbId, tmdbId));
 }

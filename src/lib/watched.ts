@@ -1,5 +1,5 @@
 import { cache } from 'react';
-import { and, desc, eq } from 'drizzle-orm';
+import { desc, eq } from 'drizzle-orm';
 import { db } from '@/db';
 import { userWatched, type WatchedItem } from '@/db/schema';
 import { isValidTmdbId, movieSnapshot } from './watchlist';
@@ -15,21 +15,18 @@ export function isValidRating(value: unknown): value is number {
   return Math.abs(value * 10 - Math.round(value * 10)) < 1e-6;
 }
 
-export const getWatched = cache(async (userId: string): Promise<WatchedItem[]> => {
-  return db.select().from(userWatched).where(eq(userWatched.userId, userId)).orderBy(desc(userWatched.watchedAt));
+export const getWatched = cache(async (): Promise<WatchedItem[]> => {
+  return db.select().from(userWatched).orderBy(desc(userWatched.watchedAt));
 });
 
 /** tmdbId → rating (null when watched but unrated), for a single movie page. */
-export const getWatchedRatings = cache(async (userId: string): Promise<Map<number, number | null>> => {
-  const rows = await db
-    .select({ tmdbId: userWatched.tmdbId, rating: userWatched.rating })
-    .from(userWatched)
-    .where(eq(userWatched.userId, userId));
+export const getWatchedRatings = cache(async (): Promise<Map<number, number | null>> => {
+  const rows = await db.select({ tmdbId: userWatched.tmdbId, rating: userWatched.rating }).from(userWatched);
   return new Map(rows.map((r) => [r.tmdbId, r.rating]));
 });
 
 /** Mark watched, snapshotting the title. Idempotent. Returns false if the id isn't a real movie. */
-export async function markWatched(userId: string, tmdbId: number): Promise<boolean> {
+export async function markWatched(tmdbId: number): Promise<boolean> {
   if (!isValidTmdbId(tmdbId)) return false;
 
   const item = await movieSnapshot(tmdbId);
@@ -37,25 +34,22 @@ export async function markWatched(userId: string, tmdbId: number): Promise<boole
 
   await db
     .insert(userWatched)
-    .values({ userId, tmdbId, ...item })
-    .onConflictDoNothing({ target: [userWatched.userId, userWatched.tmdbId] });
+    .values({ tmdbId, ...item })
+    .onConflictDoNothing({ target: userWatched.tmdbId });
   return true;
 }
 
 /** Un-watched: the row (and any rating) is removed. Idempotent. */
-export async function unmarkWatched(userId: string, tmdbId: number): Promise<void> {
+export async function unmarkWatched(tmdbId: number): Promise<void> {
   if (!isValidTmdbId(tmdbId)) return;
-  await db.delete(userWatched).where(and(eq(userWatched.userId, userId), eq(userWatched.tmdbId, tmdbId)));
+  await db.delete(userWatched).where(eq(userWatched.tmdbId, tmdbId));
 }
 
 /** Set or clear a rating, marking the title watched first. Returns false for an unknown id or a bad rating. */
-export async function setRating(userId: string, tmdbId: number, rating: number | null): Promise<boolean> {
+export async function setRating(tmdbId: number, rating: number | null): Promise<boolean> {
   if (rating !== null && !isValidRating(rating)) return false;
-  if (!(await markWatched(userId, tmdbId))) return false;
+  if (!(await markWatched(tmdbId))) return false;
 
-  await db
-    .update(userWatched)
-    .set({ rating })
-    .where(and(eq(userWatched.userId, userId), eq(userWatched.tmdbId, tmdbId)));
+  await db.update(userWatched).set({ rating }).where(eq(userWatched.tmdbId, tmdbId));
   return true;
 }

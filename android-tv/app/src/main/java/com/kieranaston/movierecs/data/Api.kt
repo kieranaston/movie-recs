@@ -12,15 +12,10 @@ import okhttp3.RequestBody.Companion.toRequestBody
 class ApiException(val code: Int) : Exception("HTTP $code")
 
 /**
- * Client for the website's /api/v1, authenticated as the signed-in user.
- * The token comes from [SessionRepository]; a 401 signs the TV out (e.g. revoked from the website).
+ * Client for the website's /api/v1. The app is single-profile, so there is no credential:
+ * every request is anonymous (the server keeps one shared watchlist).
  */
-class Api(
-    baseUrl: String,
-    private val http: OkHttpClient,
-    private val token: () -> String?,
-    private val onUnauthorized: () -> Unit,
-) {
+class Api(baseUrl: String, private val http: OkHttpClient) {
     private val base = baseUrl.toHttpUrl()
     private val json = Json { ignoreUnknownKeys = true }
 
@@ -57,13 +52,8 @@ class Api(
     }
 
     private suspend fun execute(builder: Request.Builder): String = withContext(Dispatchers.IO) {
-        val bearer = token() ?: run {
-            onUnauthorized()
-            throw ApiException(401)
-        }
-        val request = builder.header("Authorization", "Bearer $bearer").header("Accept", "application/json").build()
+        val request = builder.header("Accept", "application/json").build()
         http.newCall(request).execute().use { res ->
-            if (res.code == 401) onUnauthorized()
             if (!res.isSuccessful) throw ApiException(res.code)
             res.body.string()
         }

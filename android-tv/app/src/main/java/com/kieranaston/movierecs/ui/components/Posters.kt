@@ -236,17 +236,8 @@ fun MovieGrid(
     }
 }
 
-/** Loading placeholder shaped like a few rows of posters. */
+/** Shown while rows load: plain text instead of grey pulsing boxes. */
 @Composable
 fun RowsPlaceholder() {
-    Column(Modifier.padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(32.dp)) {
-        repeat(2) {
-            Column(Modifier.padding(start = Dimens.Gutter)) {
-                Placeholder(Modifier.width(180.dp).padding(bottom = 16.dp).aspectRatio(8f))
-                Row(horizontalArrangement = Arrangement.spacedBy(Dimens.PosterGap)) {
-                    repeat(7) { Placeholder(Modifier.width(Dimens.PosterWidth).aspectRatio(2f / 3f)) }
-                }
-            }
-        }
-    }
+    EmptyState("Loading…")
 }

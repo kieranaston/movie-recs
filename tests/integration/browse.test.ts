@@ -13,7 +13,7 @@ async function seed(films: { title: string; votes: number; year?: number; avg?: 
     .insert(movies)
     .values(films.map((f) => ({
       tmdbId: nextId++, title: f.title, releaseDate: `${f.year ?? 2012}-06-01`,
-      voteAverage: f.avg ?? 8.2, voteCount: f.votes, popularity: 10, availableAnywhere: true,
+      voteAverage: f.avg ?? 8.2, voteCount: f.votes, popularity: 10,
       imdbRating: f.imdb ?? null, imdbVotes: f.imdbVotes ?? null,
     })))
     .returning();

@@ -1,12 +1,11 @@
-import { viewerFromHeaders, type Viewer } from './auth';
 import { allowRequest } from './rate-limit';
 import { genreBySlug, type GenrePage } from './taxonomy';
 import { yearOf } from './scoring';
 
 /**
  * Helpers for the /api/v1 JSON API (consumed by the Android TV app).
- * Every route calls `requireUser()` first: requests must carry the user's own session
- * (bearer token from the TV sign-in, or the website's cookie). No shared secrets.
+ * Single-profile app: no accounts, so routes are open. `guard()` keeps a per-IP budget
+ * so a stray script can't burn the TMDB quota.
  */
 
 /** The one card shape every list endpoint returns. Image paths are TMDB paths (client builds the URL). */
@@ -30,17 +29,16 @@ export function toApiCard(m: {
 
 export const error = (status: number, message: string) => Response.json({ error: message }, { status });
 
-/** Per-user API budget: generous for a TV remote, tight enough to stop scripted abuse. */
+/** Per-IP API budget: generous for a TV remote, tight enough to stop scripted abuse. */
 export const API_RATE_LIMIT = { max: 120, windowMs: 60_000 };
 
-/** The signed-in user, or an error Response (401 not signed in, 429 over the rate limit). */
-export async function requireUser(request: Request): Promise<Viewer | Response> {
-  const viewer = await viewerFromHeaders(request.headers);
-  if (!viewer) return error(401, 'Unauthorized');
-  if (!(await allowRequest(`api:${viewer.id}`, API_RATE_LIMIT.max, API_RATE_LIMIT.windowMs))) {
+/** An error Response if this request is over budget (429), otherwise null. */
+export async function guard(request: Request): Promise<Response | null> {
+  const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
+  if (!(await allowRequest(`api:${ip}`, API_RATE_LIMIT.max, API_RATE_LIMIT.windowMs))) {
     return error(429, 'Too many requests');
   }
-  return viewer;
+  return null;
 }
 
 /** Parse a positive integer, or null. */
