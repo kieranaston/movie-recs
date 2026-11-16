@@ -3,10 +3,7 @@ process.env.DATABASE_URL = 'postgres://unused-in-tests';
 process.env.TMDB_API_KEY = 'test-tmdb-key';
 process.env.SITE_PASSWORD = 'test-password';
 
-import { beforeEach, vi } from 'vitest';
-import { resetBrowseMemo } from '@/lib/browse';
-
-beforeEach(() => resetBrowseMemo());
+import { vi } from 'vitest';
 
 // Each test file gets its own in-memory Postgres in place of Neon (created lazily on first import).
 vi.mock('@/db', async () => {

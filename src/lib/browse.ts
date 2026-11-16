@@ -207,7 +207,7 @@ const SECTION_PAGE = 20;
  * Build every row's full ranked list. Rows are unlimited (they scroll through everything that fits
  * the lens, so no eligible film is unreachable); only the first screen is kept free of repeats.
  */
-async function computeUncached(genreId?: number, filter?: GenreFilter) {
+async function computeRanks(genreId?: number, filter?: GenreFilter) {
   const catalog = await getCatalog();
   const target = filter ? await resolveFilterTarget(filter) : [];
 
@@ -263,27 +263,31 @@ async function computeUncached(genreId?: number, filter?: GenreFilter) {
   return { full, matched };
 }
 
-// Scoring the whole catalog is the expensive step, and the answer only changes on ingest. Keep each
-// (genre, filter) result in memory for a few minutes so repeat visits and "load more" are instant.
-const MEMO_MS = 5 * 60_000;
-const MEMO_MAX = 100;
-const memo = new Map<string, { at: number; value: ReturnType<typeof computeUncached> }>();
+/**
+ * The ranking result as plain ids (a few hundred KB at most), cached in Next's shared data cache so every
+ * server instance reuses it and it survives restarts. It's marked stale by `revalidateTag('catalog')`
+ * right after an ingest (see /api/revalidate) and otherwise refreshes hourly.
+ */
+const rankIds = unstable_cache(
+  async (genreId: number | null, filter: GenreFilter | null) => {
+    const { full, matched } = await computeRanks(genreId ?? undefined, filter ?? undefined);
+    const ids = {} as Record<SectionId, number[]>;
+    for (const id of PRIORITY) ids[id] = full[id].map((m) => m.id);
+    const list = [...matched.values()].sort((a, b) => b.settled - a.settled).map((m) => m.id);
+    return { full: ids, total: matched.size, list: filter ? list : [] };
+  },
+  ['rank-ids-v1'],
+  { revalidate: 3600, tags: ['catalog'] }
+);
 
-/** Forget remembered results (tests, or after changing the catalog). */
-export function resetBrowseMemo() {
-  memo.clear();
-}
+const cardIndex = cache(async () => new Map((await getCatalog()).map((m) => [m.id, m])));
 
-function compute(genreId?: number, filter?: GenreFilter) {
-  const key = `${genreId ?? ''}|${filter ? `${filter.kind}:${filter.label}` : ''}`;
-  const hit = memo.get(key);
-  if (hit && Date.now() - hit.at < MEMO_MS) return hit.value;
-
-  const value = computeUncached(genreId, filter);
-  value.catch(() => memo.delete(key)); // never keep a failure
-  if (memo.size >= MEMO_MAX) memo.delete(memo.keys().next().value as string);
-  memo.set(key, { at: Date.now(), value });
-  return value;
+async function toCards(ids: number[]): Promise<CardMovie[]> {
+  const index = await cardIndex();
+  return ids.flatMap((id) => {
+    const m = index.get(id);
+    return m ? [toCard(m)] : [];
+  });
 }
 
 export interface BrowseResult {
@@ -299,21 +303,21 @@ export async function getBrowsePage(opts: {
   limit?: number;
 } = {}): Promise<BrowseResult> {
   const { genreId, filter, limit = SECTION_CARDS } = opts;
-  const { full, matched } = await compute(genreId, filter);
-  const total = matched.size;
+  const { full, total, list } = await rankIds(genreId ?? null, filter ?? null);
 
   if (filter) {
-    const movies = [...matched.values()].sort((a, b) => b.settled - a.settled).map(toCard);
-    return { mode: 'list', sections: [], movies, total };
+    return { mode: 'list', sections: [], movies: await toCards(list), total };
   }
 
-  const sections: SectionResult[] = SECTIONS.map((s) => ({
-    id: s.id,
-    label: s.label,
-    blurb: s.blurb,
-    total: full[s.id].length,
-    movies: full[s.id].slice(0, limit).map(toCard),
-  }));
+  const sections: SectionResult[] = await Promise.all(
+    SECTIONS.map(async (s) => ({
+      id: s.id,
+      label: s.label,
+      blurb: s.blurb,
+      total: full[s.id].length,
+      movies: await toCards(full[s.id].slice(0, limit)),
+    }))
+  );
 
   return { mode: 'sections', sections, movies: [], total };
 }
@@ -326,7 +330,7 @@ export async function getSectionMovies(opts: {
   limit?: number;
 }): Promise<{ movies: CardMovie[]; total: number }> {
   const { genreId, sectionId, offset, limit = SECTION_PAGE } = opts;
-  const { full } = await compute(genreId, undefined);
+  const { full } = await rankIds(genreId ?? null, null);
   const rows = full[sectionId] ?? [];
-  return { movies: rows.slice(offset, offset + limit).map(toCard), total: rows.length };
+  return { movies: await toCards(rows.slice(offset, offset + limit)), total: rows.length };
 }

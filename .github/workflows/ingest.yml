@@ -2,7 +2,7 @@ name: Weekly TMDB Ingest
 
 # Refreshes the production catalog: new films, updated ratings/votes, and streaming availability
 # (new titles, plus re-checks — weekly for unavailable/recent titles, monthly for the rest).
-# The site picks up changes within an hour (catalog cache).
+# The site picks up changes within an hour (catalog cache), or at once if the SITE_URL and SITE_PASSWORD secrets are set.
 
 on:
   schedule:
@@ -38,3 +38,14 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
+      # Optional: with SITE_URL and SITE_PASSWORD secrets set, new data shows immediately
+      # instead of within an hour.
+      - name: Refresh the site's cache
+        env:
+          SITE_URL: ${{ secrets.SITE_URL }}
+          SITE_PASSWORD: ${{ secrets.SITE_PASSWORD }}
+        run: |
+          [ -n "$SITE_URL" ] && [ -n "$SITE_PASSWORD" ] || { echo "SITE_URL / SITE_PASSWORD not set; skipping"; exit 0; }
+          token=$(curl -fsS -X POST "$SITE_URL/api/v1/login" -H 'content-type: application/json' \
+            -d "$(jq -n --arg p "$SITE_PASSWORD" '{password:$p}')" | jq -r .token)
+          curl -fsS -X POST "$SITE_URL/api/revalidate" -H "authorization: Bearer $token"

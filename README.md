@@ -65,7 +65,8 @@ Needs a Node host (not GitHub Pages). Vercel + Neon works:
 3. Import the repo at [vercel.com/new](https://vercel.com/new) and set the variables above.
 
 `.github/workflows/ingest.yml` refreshes the catalog every Sunday 03:00 UTC. It needs the repo secrets
-`DATABASE_URL` and `TMDB_API_KEY`. The site picks up new data within an hour.
+`DATABASE_URL` and `TMDB_API_KEY`. The site picks up new data within an hour, or immediately if you also add the
+`SITE_URL` (e.g. `https://mrecs.vercel.app`) and `SITE_PASSWORD` secrets.
 
 ## Layout
 
