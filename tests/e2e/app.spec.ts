@@ -123,10 +123,12 @@ test.describe('owner login', () => {
 
     await page.getByLabel('Password').fill('e2e-password');
     await page.getByRole('button', { name: 'Sign in' }).click();
+    await page.waitForURL((url) => url.pathname === '/'); // the login redirects home once the cookie is set
     await page.goto('/login');
     await expect(page.getByRole('heading', { name: 'Signed in' })).toBeVisible();
 
     await page.getByRole('button', { name: 'Sign out' }).click();
+    await page.waitForURL((url) => url.pathname === '/');
     await page.goto('/login');
     await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
   });
