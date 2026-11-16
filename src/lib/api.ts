@@ -4,7 +4,7 @@ import { yearOf } from './scoring';
 
 /**
  * Helpers for the /api/v1 JSON API (consumed by the Android TV app).
- * Single-profile app: no accounts, so routes are open. `guard()` keeps a per-IP budget
+ * Single-profile app: reads are open, writes need the owner token (see auth.ts). `guard()` keeps a per-IP budget
  * so a stray script can't burn the TMDB quota.
  */
 

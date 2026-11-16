@@ -77,8 +77,8 @@ object Fonts {
         bodyLarge = style(17, FontWeight.Normal, 26),               // overview on details
         bodyMedium = style(14, FontWeight.Normal, 20),              // About text, hints
         labelLarge = style(14, FontWeight.Medium, 18),              // poster titles, tabs, buttons
-        labelMedium = style(12, FontWeight.Medium, 16, 0.2),        // year · rating, genres, provider groups
-        labelSmall = style(11, FontWeight.Medium, 14, 0.2),         // "data from JustWatch"
+        labelMedium = style(12, FontWeight.Medium, 16, 0.2),        // year · rating, genres
+        labelSmall = style(11, FontWeight.Medium, 14, 0.2),         // small captions
     )
 }
 
