@@ -5,6 +5,11 @@
 A personal movie-browsing app: browse by genre, filtered to films worth your time, with underseen gems surfaced.
 Next.js, Tailwind, Drizzle + PostgreSQL, TMDB. There's also an [Android TV app](android-tv/README.md).
 
+<p>
+  <img src="docs/home.jpg" alt="Home page with Top Rated and Hidden Gems rows" width="49%">
+  <img src="docs/movie.jpg" alt="Movie page with trailer, watchlist and watched buttons" width="49%">
+</p>
+
 ## Features
 
 - **Genre pages** with sub-filters (Horror → Found Footage, Slasher; Animation → Disney, Pixar, Ghibli).
