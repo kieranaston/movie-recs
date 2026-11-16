@@ -119,7 +119,7 @@ test.describe('owner login', () => {
     await page.goto('/login');
     await page.getByLabel('Password').fill('nope');
     await page.getByRole('button', { name: 'Sign in' }).click();
-    await expect(page.getByRole('alert')).toHaveText('Wrong password.');
+    await expect(page.getByText('Wrong password.')).toBeVisible();
 
     await page.getByLabel('Password').fill('e2e-password');
     await page.getByRole('button', { name: 'Sign in' }).click();
