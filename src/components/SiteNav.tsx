@@ -136,6 +136,11 @@ export function SiteNav() {
                 Watched
               </Link>
             </li>
+            <li>
+              <Link href="/login" onClick={close} className={item(pathname === '/login')} aria-current={pathname === '/login' ? 'page' : undefined}>
+                Owner sign-in
+              </Link>
+            </li>
             {pathname === '/search' && (
               <li>
                 <span className={item(true)} aria-current="page">Search results</span>

@@ -52,7 +52,7 @@ CI runs both (plus lint and the release build) on every push.
 
 ## Security model
 
-- **No secrets in the APK.** The app is single-profile and anonymous; it only reads the site's public `/api/v1`.
+- **No secrets in the APK.** Browsing needs no sign-in. To change the watchlist, enter the owner password on the About tab once; the app stores only a login token (not the password) on the device.
 - Release builds allow HTTPS only and trust only system CAs (`res/xml/network_security_config.xml`). Plain HTTP to
   the emulator host is allowed in debug builds only.
 - No backups, no logging of requests; R8 shrinks and obfuscates release builds.

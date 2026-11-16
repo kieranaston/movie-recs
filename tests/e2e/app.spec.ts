@@ -1,4 +1,11 @@
+import { createHmac } from 'node:crypto';
 import { expect, test } from '@playwright/test';
+
+/** Sign in as the owner by setting the login cookie directly (the login form is covered in its own test). */
+const ownerToken = createHmac('sha256', 'e2e-password').update('movie-recs-owner').digest('hex');
+const signIn = (context: import('@playwright/test').BrowserContext) =>
+  context.addCookies([{ name: 'owner', value: ownerToken, url: 'http://localhost:3100' }]);
+
 
 test.describe('catalog', () => {
   test('browses movies', async ({ page }) => {
@@ -53,7 +60,8 @@ test.describe('movie page', () => {
     expect((await overview())!.height).toBeCloseTo(clipped!.height, 0);
   });
 
-  test('adds to and removes from the watchlist', async ({ page, request }) => {
+  test('adds to and removes from the watchlist', async ({ page, request, context }) => {
+    await signIn(context);
     const ids = async () => {
       const res = await request.get('/api/v1/watchlist');
       expect(res.status(), await res.text()).toBe(200);
@@ -83,7 +91,8 @@ test.describe('movie page', () => {
     expect(await ids()).not.toContain(27205);
   });
 
-  test('marks a movie watched and rates it', async ({ page }) => {
+  test('marks a movie watched and rates it', async ({ page, context }) => {
+    await signIn(context);
     const saved = () => page.waitForResponse((r) => r.request().method() === 'POST' && r.ok());
 
     await page.goto('/movie/27205');
@@ -102,5 +111,27 @@ test.describe('movie page', () => {
     await page.goto('/watched');
     await expect(page.getByText('Inception')).toBeVisible();
     await expect(page.getByText('5.1')).toBeVisible();
+  });
+});
+
+test.describe('owner login', () => {
+  test('rejects a wrong password, then signs in and out', async ({ page }) => {
+    await page.goto('/login');
+    await page.getByLabel('Password').fill('nope');
+    await page.getByRole('button', { name: 'Sign in' }).click();
+    await expect(page.getByRole('alert')).toHaveText('Wrong password.');
+
+    await page.getByLabel('Password').fill('e2e-password');
+    await page.getByRole('button', { name: 'Sign in' }).click();
+    await page.goto('/login');
+    await expect(page.getByRole('heading', { name: 'Signed in' })).toBeVisible();
+
+    await page.getByRole('button', { name: 'Sign out' }).click();
+    await page.goto('/login');
+    await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
+  });
+
+  test('the API refuses writes without a token', async ({ request }) => {
+    expect((await request.put('/api/v1/watchlist/27205')).status()).toBe(401);
   });
 });

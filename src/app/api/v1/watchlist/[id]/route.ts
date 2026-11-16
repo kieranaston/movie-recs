@@ -1,4 +1,5 @@
 import { error, guard, parseId } from '@/lib/api';
+import { requestIsOwner } from '@/lib/auth';
 import { addToWatchlist, removeFromWatchlist } from '@/lib/watchlist';
 
 type Ctx = RouteContext<'/api/v1/watchlist/[id]'>;
@@ -7,6 +8,7 @@ type Ctx = RouteContext<'/api/v1/watchlist/[id]'>;
 export async function PUT(request: Request, ctx: Ctx) {
   const denied = await guard(request);
   if (denied) return denied;
+  if (!requestIsOwner(request)) return error(401, 'Sign in required');
 
   const tmdbId = parseId((await ctx.params).id);
   if (!tmdbId || !(await addToWatchlist(tmdbId))) return error(404, 'Not found');
@@ -17,6 +19,7 @@ export async function PUT(request: Request, ctx: Ctx) {
 export async function DELETE(request: Request, ctx: Ctx) {
   const denied = await guard(request);
   if (denied) return denied;
+  if (!requestIsOwner(request)) return error(401, 'Sign in required');
 
   const tmdbId = parseId((await ctx.params).id);
   if (!tmdbId) return error(404, 'Not found');

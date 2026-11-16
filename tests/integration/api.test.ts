@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { db } from '@/db';
-import { apiRateLimit } from '@/db/schema';
+import { apiRateLimit, userWatchlist } from '@/db/schema';
 import { API_RATE_LIMIT } from '@/lib/api';
+import { ownerToken } from '@/lib/auth';
+import * as loginRoute from '@/app/api/v1/login/route';
 import { getMovieDetail } from '@/lib/tmdb';
 import * as genresRoute from '@/app/api/v1/genres/route';
 import * as browseRoute from '@/app/api/v1/browse/route';
@@ -26,8 +28,12 @@ vi.mock('@/lib/tmdb', async (importOriginal) => ({
 }));
 
 const BASE = 'http://localhost:3000/api/v1';
-const req = (path: string, method = 'GET', ip?: string) =>
-  new Request(`${BASE}${path}`, { method, headers: ip ? { 'x-forwarded-for': ip } : {} });
+const TOKEN = ownerToken()!;
+const req = (path: string, method = 'GET', ip?: string, auth = method !== 'GET') =>
+  new Request(`${BASE}${path}`, {
+    method,
+    headers: { ...(ip ? { 'x-forwarded-for': ip } : {}), ...(auth ? { authorization: `Bearer ${TOKEN}` } : {}) },
+  });
 const ctx = (id: string) => ({ params: Promise.resolve({ id }) }) as never;
 
 beforeEach(async () => {
@@ -40,6 +46,30 @@ describe('open API', () => {
     expect((await genresRoute.GET(req('/genres'))).status).toBe(200);
     expect((await browseRoute.GET(req('/browse'))).status).toBe(200);
     expect((await watchlistRoute.GET(req('/watchlist'))).status).toBe(200);
+  });
+});
+
+describe('owner-only writes', () => {
+  it('rejects writes without the token or with a wrong one', async () => {
+    expect((await watchlistItemRoute.PUT(req('/watchlist/155', 'PUT', undefined, false), ctx('155'))).status).toBe(401);
+    expect((await watchlistItemRoute.DELETE(req('/watchlist/155', 'DELETE', undefined, false), ctx('155'))).status).toBe(401);
+    const bad = new Request(`${BASE}/watchlist/155`, { method: 'PUT', headers: { authorization: 'Bearer nope' } });
+    expect((await watchlistItemRoute.PUT(bad, ctx('155'))).status).toBe(401);
+    expect(await db.select().from(userWatchlist)).toHaveLength(0);
+  });
+
+  it('accepts the login cookie too', async () => {
+    const r = new Request(`${BASE}/watchlist/155`, { method: 'PUT', headers: { cookie: `a=b; owner=${TOKEN}` } });
+    expect((await watchlistItemRoute.PUT(r, ctx('155'))).status).toBe(204);
+  });
+
+  it('login returns the token only for the right password', async () => {
+    const post = (password: string, ip: string) =>
+      loginRoute.POST(new Request(`${BASE}/login`, { method: 'POST', headers: { 'x-forwarded-for': ip }, body: JSON.stringify({ password }) }));
+    expect((await post('wrong', '9.9.9.1')).status).toBe(401);
+    const ok = await post('test-password', '9.9.9.2');
+    expect(ok.status).toBe(200);
+    expect(await ok.json()).toEqual({ token: TOKEN });
   });
 });
 

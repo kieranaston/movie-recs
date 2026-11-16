@@ -10,7 +10,7 @@ A personal movie-browsing app: browse by genre, filtered to films worth your tim
 - **Quality-gated sections** — every page shows *Top Rated · Hidden Gems · Fun · Classics · Recent · Popular*, each a different lens over the same catalog.
 - **Smart scoring** (TMDB-only): a Bayesian weighted rating, a recency/confidence penalty, and an age-relative "underseen" score. A global gate hides low-quality titles; a relaxed, age-aware gate feeds the Fun row.
 - **Unreleased titles hidden** — films that aren't out yet are dropped from every row.
-- **One watchlist** — a single shared list for the site and the TV; no sign-in.
+- **One watchlist** — a single list shared by the site and the TV. Anyone can browse; only the owner (password) can change it.
 - **Android TV app** — a native Compose-for-TV client ([`android-tv/`](android-tv/README.md)).
 - **Trailers** — play a movie's YouTube trailer from its page.
 - **Fast** — cached catalog, slim card payloads, incremental section loading.
@@ -45,6 +45,7 @@ npm run dev               # http://localhost:3000
 | --- | --- |
 | `DATABASE_URL` | Postgres connection string (Neon **pooled**) |
 | `TMDB_API_KEY` | TMDB v3 key — server-side only |
+| `SITE_PASSWORD` | Owner password. Required to change the watchlist, watched list and ratings (writes are refused without it) |
 | `DATABASE_POOL_MAX` | Optional connection-pool size (default 10) |
 
 **Develop against a Neon branch, not production.** Put the branch's connection string in `.env.development.local`
@@ -52,8 +53,13 @@ npm run dev               # http://localhost:3000
 
 ## Single profile
 
-This is a personal app, so there are no accounts: the watchlist and watched/ratings are one shared set of rows
-(`user_watchlist`, `user_watched`). `/api/v1` is open but rate-limited per IP, so a stray script can't burn the TMDB quota.
+This is a personal app: the watchlist and watched/ratings are one set of rows (`user_watchlist`, `user_watched`).
+Reading is open to everyone. Changing anything needs the owner password (`SITE_PASSWORD`):
+
+- **Website:** sign in at `/login`; an httpOnly cookie holds a token derived from the password (not the password itself).
+- **TV app / API:** `POST /api/v1/login {"password": "..."}` returns a token; send it as `Authorization: Bearer <token>`
+  on `PUT`/`DELETE /api/v1/watchlist/<id>`. The TV app does this from its About tab.
+- Login attempts and API calls are rate-limited per IP, so a stray script can't guess the password or burn the TMDB quota.
 
 - **Headers:** `X-Frame-Options: DENY`, `frame-ancestors 'none'`, `nosniff`, strict referrer and permissions policies.
 - **Secrets** live only in server env vars. `.env*` files are gitignored.

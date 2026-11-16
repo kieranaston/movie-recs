@@ -33,7 +33,14 @@ class MovieApp : Application(), SingletonImageLoader.Factory {
         http.newBuilder().addInterceptor { chain -> chain.proceed(chain.request().newBuilder().header("User-Agent", userAgent).build()) }.build()
     }
 
-    val api by lazy { Api(BuildConfig.API_BASE_URL, serverHttp) }
+    private val prefs by lazy { getSharedPreferences("auth", MODE_PRIVATE) }
+
+    /** The owner token from signing in, or null. Without it the watchlist is read-only. */
+    var ownerToken: String?
+        get() = prefs.getString("token", null)
+        set(value) { prefs.edit().apply { if (value == null) remove("token") else putString("token", value) }.apply() }
+
+    val api by lazy { Api(BuildConfig.API_BASE_URL, serverHttp) { ownerToken } }
 
     val watchlist by lazy { WatchlistRepository(api, scope).also { it.refresh() } }
 

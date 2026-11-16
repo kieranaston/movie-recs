@@ -68,6 +68,7 @@ async function main() {
       DATABASE_URL: `postgres://postgres:postgres@127.0.0.1:${DB_PORT}/postgres?sslmode=disable`,
       DATABASE_POOL_MAX: '1', // PGlite is single-connection; avoid its multiplexer
       TMDB_API_KEY: 'e2e',
+      SITE_PASSWORD: 'e2e-password',
       TMDB_BASE_URL: `http://127.0.0.1:${TMDB_PORT}`,
     },
   });

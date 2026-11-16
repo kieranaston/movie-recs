@@ -7,15 +7,20 @@ import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.put
 
 class ApiException(val code: Int) : Exception("HTTP $code")
 
 /**
- * Client for the website's /api/v1. The app is single-profile, so there is no credential:
- * every request is anonymous (the server keeps one shared watchlist).
+ * Client for the website's /api/v1. Reads are open; changing the watchlist needs the owner token,
+ * which [token] supplies (null until you sign in from the About tab).
  */
-class Api(baseUrl: String, private val http: OkHttpClient) {
+class Api(baseUrl: String, private val http: OkHttpClient, private val token: () -> String? = { null }) {
     private val base = baseUrl.toHttpUrl()
     private val json = Json { ignoreUnknownKeys = true }
 
@@ -37,6 +42,13 @@ class Api(baseUrl: String, private val http: OkHttpClient) {
 
     suspend fun removeFromWatchlist(tmdbId: Int) = send("DELETE", "watchlist/$tmdbId")
 
+    /** Exchanges the owner password for a token. Throws [ApiException] (401 = wrong password). */
+    suspend fun login(password: String): String {
+        val body = buildJsonObject { put("password", password) }.toString().toRequestBody("application/json".toMediaType())
+        val response = execute(Request.Builder().url(url("login", emptyArray())).post(body))
+        return json.parseToJsonElement(response).jsonObject.getValue("token").jsonPrimitive.content
+    }
+
     private fun url(path: String, query: Array<out Pair<String, Any?>>): HttpUrl =
         base.newBuilder().addPathSegments("api/v1/$path").apply {
             for ((k, v) in query) if (v != null) addQueryParameter(k, v.toString())
@@ -52,6 +64,7 @@ class Api(baseUrl: String, private val http: OkHttpClient) {
     }
 
     private suspend fun execute(builder: Request.Builder): String = withContext(Dispatchers.IO) {
+        token()?.let { builder.header("Authorization", "Bearer $it") }
         val request = builder.header("Accept", "application/json").build()
         http.newCall(request).execute().use { res ->
             if (!res.isSuccessful) throw ApiException(res.code)
