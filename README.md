@@ -2,6 +2,8 @@
 
 A personal movie-browsing app: browse by genre, filtered to films worth your time, with the underseen gems surfaced. Built with Next.js, Tailwind, Drizzle + PostgreSQL, and TMDB.
 
+**Live site: [mrecs.vercel.app](https://mrecs.vercel.app)**
+
 ## Features
 
 - **Genre tabs** with per-genre filters (e.g. Horror → Found Footage, Slasher; Animation → Disney, Pixar, Ghibli).
