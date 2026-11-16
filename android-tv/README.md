@@ -18,7 +18,7 @@ cp local.properties.example local.properties   # gitignored — SDK path, server
 
 | Property | Used by | Default |
 | --- | --- | --- |
-| `api.baseUrl` | release | `https://movie-recs-tawny.vercel.app` (must be `https://`) |
+| `api.baseUrl` | release | `https://mrecs.vercel.app` (must be `https://`) |
 | `api.debugBaseUrl` | debug | `api.baseUrl`; use `http://10.0.2.2:3000` for `npm run dev` from the emulator |
 | `release.*` | release signing | falls back to the local debug key |
 

@@ -111,7 +111,7 @@ private fun trailerWebView(context: Context, key: String, onEnded: () -> Unit, o
     }
 }
 
-private const val EMBED_ORIGIN = "https://movie-recs-tawny.vercel.app/"
+private const val EMBED_ORIGIN = "https://mrecs.vercel.app/"
 
 /**
  * Full-screen IFrame player, sized in pixels: sized with CSS percentages it plays sound over a

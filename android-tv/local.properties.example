@@ -1,8 +1,8 @@
 # Copy to local.properties (gitignored) and fill in.
 sdk.dir=/Users/YOU/Library/Android/sdk
 
-# Optional. Release default: https://movie-recs-tawny.vercel.app (must be https).
-# api.baseUrl=https://movie-recs-tawny.vercel.app
+# Optional. Release default: https://mrecs.vercel.app (must be https).
+# api.baseUrl=https://mrecs.vercel.app
 # Optional. Debug builds only — e.g. the emulator talking to `npm run dev` on your Mac:
 # api.debugBaseUrl=http://10.0.2.2:3000
 

@@ -16,7 +16,7 @@ fun quoted(s: String) = "\"" + s.replace("\\", "\\\\").replace("\"", "\\\"") + "
 fun setting(property: String, env: String): String? =
     providers.environmentVariable(env).orNull?.takeIf { it.isNotBlank() } ?: local.getProperty(property)
 
-val releaseBaseUrl: String = local.getProperty("api.baseUrl", "https://movie-recs-tawny.vercel.app")
+val releaseBaseUrl: String = local.getProperty("api.baseUrl", "https://mrecs.vercel.app")
 val debugBaseUrl: String = local.getProperty("api.debugBaseUrl", releaseBaseUrl)
 val releaseKeystore: String? = setting("release.storeFile", "RELEASE_STORE_FILE")
 val isCi = providers.environmentVariable("CI").orNull == "true"
