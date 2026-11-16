@@ -16,13 +16,13 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: 'Movie Discovery',
-  description: 'Discover popular movies and find where to stream them in Canada',
+  description: 'Browse movies by genre, filtered to the ones worth your time, with underseen gems surfaced',
   metadataBase: new URL(
     process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : 'http://localhost:3000'
   ),
   openGraph: {
     title: 'Movie Discovery',
-    description: 'Discover popular movies and find where to stream them in Canada',
+    description: 'Browse movies by genre, filtered to the ones worth your time, with underseen gems surfaced',
     type: 'website',
     locale: 'en_CA',
     siteName: 'Movie Discovery',
@@ -30,7 +30,7 @@ export const metadata: Metadata = {
   twitter: {
     card: 'summary_large_image',
     title: 'Movie Discovery',
-    description: 'Discover popular movies and find where to stream them in Canada',
+    description: 'Browse movies by genre, filtered to the ones worth your time, with underseen gems surfaced',
   },
   robots: {
     index: true,

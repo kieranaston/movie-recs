@@ -12,18 +12,6 @@ export function Footer() {
           </a>
           . Used with permission.
         </p>
-        <p className="mb-2">
-          Streaming availability data provided by{' '}
-          <a
-            href="https://www.justwatch.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-primary hover:underline"
-          >
-            JustWatch
-          </a>
-          .
-        </p>
         <p>
           <a
             href="https://www.themoviedb.org"

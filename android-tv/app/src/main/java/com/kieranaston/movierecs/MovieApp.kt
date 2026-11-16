@@ -2,6 +2,7 @@ package com.kieranaston.movierecs
 
 import android.app.Application
 import android.os.Build
+import androidx.core.content.edit
 import coil3.ImageLoader
 import coil3.PlatformContext
 import coil3.SingletonImageLoader
@@ -38,7 +39,7 @@ class MovieApp : Application(), SingletonImageLoader.Factory {
     /** The owner token from signing in, or null. Without it the watchlist is read-only. */
     var ownerToken: String?
         get() = prefs.getString("token", null)
-        set(value) { prefs.edit().apply { if (value == null) remove("token") else putString("token", value) }.apply() }
+        set(value) = prefs.edit { if (value == null) remove("token") else putString("token", value) }
 
     val api by lazy { Api(BuildConfig.API_BASE_URL, serverHttp) { ownerToken } }
 

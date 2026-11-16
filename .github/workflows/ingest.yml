@@ -1,7 +1,6 @@
 name: Weekly TMDB Ingest
 
-# Refreshes the production catalog: new films, updated ratings/votes, and streaming availability
-# (new titles, plus re-checks — weekly for unavailable/recent titles, monthly for the rest).
+# Refreshes the production catalog: new films, and updated ratings/votes.
 # The site picks up changes within an hour (catalog cache), or at once if the SITE_URL and SITE_PASSWORD secrets are set.
 
 on:
