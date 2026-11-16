@@ -27,6 +27,9 @@ export function toApiCard(m: {
   return { tmdbId: m.tmdbId, title: m.title, year: yearOf(m.releaseDate), posterPath: m.posterPath, voteAverage: m.voteAverage };
 }
 
+/** Catalog reads are the same for everyone and change only on ingest, so the CDN may keep them briefly. */
+export const CACHEABLE = { headers: { 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=3600' } };
+
 export const error = (status: number, message: string) => Response.json({ error: message }, { status });
 
 /** Per-IP API budget: generous for a TV remote, tight enough to stop scripted abuse. */

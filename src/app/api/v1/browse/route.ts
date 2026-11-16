@@ -1,4 +1,4 @@
-import { error, guard, parseGenre, parseInt0, toApiCard } from '@/lib/api';
+import { CACHEABLE, error, guard, parseGenre, parseInt0, toApiCard } from '@/lib/api';
 import { getBrowsePage } from '@/lib/browse';
 
 /**
@@ -27,7 +27,7 @@ export async function GET(request: Request) {
       mode: 'list',
       movies: result.movies.slice(offset, offset + limit).map(toApiCard),
       total: result.total,
-    });
+    }, CACHEABLE);
   }
 
   return Response.json({
@@ -35,5 +35,5 @@ export async function GET(request: Request) {
     sections: result.sections
       .filter((s) => s.movies.length > 0)
       .map((s) => ({ id: s.id, label: s.label, total: s.total, movies: s.movies.map(toApiCard) })),
-  });
+  }, CACHEABLE);
 }

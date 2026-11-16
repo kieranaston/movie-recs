@@ -1,183 +1,86 @@
 # Movie Discovery
 
-A personal movie-browsing app: browse by genre, filtered to films worth your time, with the underseen gems surfaced. Built with Next.js, Tailwind, Drizzle + PostgreSQL, and TMDB.
+### 🎬 [**Live site → mrecs.vercel.app**](https://mrecs.vercel.app)
 
-**Live site: [mrecs.vercel.app](https://mrecs.vercel.app)**
+A personal movie-browsing app: browse by genre, filtered to films worth your time, with underseen gems surfaced.
+Next.js, Tailwind, Drizzle + PostgreSQL, TMDB. There's also an [Android TV app](android-tv/README.md).
 
 ## Features
 
-- **Genre tabs** with per-genre filters (e.g. Horror → Found Footage, Slasher; Animation → Disney, Pixar, Ghibli).
-- **Quality-gated sections** — every page shows *Top Rated · Hidden Gems · Fun · Classics · Recent · Popular*, each a different lens over the same catalog.
-- **Smart scoring** (TMDB-only): a Bayesian weighted rating, a recency/confidence penalty, and an age-relative "underseen" score. A global gate hides low-quality titles; a relaxed, age-aware gate feeds the Fun row.
-- **Unreleased titles hidden** — films that aren't out yet are dropped from every row.
-- **One watchlist** — a single list shared by the site and the TV. Anyone can browse; only the owner (password) can change it.
-- **Android TV app** — a native Compose-for-TV client ([`android-tv/`](android-tv/README.md)).
-- **Trailers** — play a movie's YouTube trailer from its page.
-- **Fast** — cached catalog, slim card payloads, incremental section loading.
+- **Genre pages** with sub-filters (Horror → Found Footage, Slasher; Animation → Disney, Pixar, Ghibli).
+- **Six rows everywhere** — Top Rated · Hidden Gems · Fun · Classics · Recent · Popular — ranked by a Bayesian rating
+  with recency and "underseen" adjustments. Low-quality and unreleased titles are hidden.
+- **Watchlist, watched list and 0.5–10 ratings**, shared by the site and the TV.
+- **Trailers** and a TMDB search.
 
-## Tech Stack
+## Run it locally
 
-- **Framework**: Next.js 16 (App Router, React 19, TypeScript)
-- **Styling**: Tailwind CSS v4
-- **Database**: PostgreSQL (Neon) with Drizzle ORM
-- **Tests**: Vitest + PGlite (in-memory Postgres), Playwright
-- **API**: TMDB (The Movie Database) — the only data source
-
-## Getting Started
-
-### Prerequisites
-
-- Node.js 22+
-- PostgreSQL (Neon recommended)
-- TMDB API key ([themoviedb.org](https://www.themoviedb.org/settings/api))
-
-### Setup
+Needs Node 22+, a Postgres database ([Neon](https://neon.tech) works well) and a [TMDB API key](https://www.themoviedb.org/settings/api).
 
 ```bash
 npm install
-cp .env.example .env      # then fill it in (see below)
-npm run db:push           # create the schema
-npm run ingest            # populate the catalog (TMDB)
+cp .env.example .env      # fill in the variables below
+npm run db:push           # create the tables
+npm run ingest            # fill the catalog from TMDB (~2 min, resumable)
 npm run dev               # http://localhost:3000
 ```
 
 | Variable | Purpose |
 | --- | --- |
 | `DATABASE_URL` | Postgres connection string (Neon **pooled**) |
-| `TMDB_API_KEY` | TMDB v3 key — server-side only |
-| `SITE_PASSWORD` | Owner password. Required to change the watchlist, watched list and ratings (writes are refused without it) |
-| `DATABASE_POOL_MAX` | Optional connection-pool size (default 10) |
+| `TMDB_API_KEY` | TMDB v3 key (server-side only) |
+| `SITE_PASSWORD` | Owner password. Without it, nobody can edit |
+| `DATABASE_POOL_MAX` | Optional pool size (default 10) |
 
-**Develop against a Neon branch, not production.** Put the branch's connection string in `.env.development.local`
-(gitignored; Next.js prefers it over `.env` when running `npm run dev`).
+Develop against a Neon branch, not production: put its connection string in `.env.development.local` (gitignored).
 
-## Single profile
+## Who can edit
 
-This is a personal app: the watchlist and watched/ratings are one set of rows (`user_watchlist`, `user_watched`).
-Reading is open to everyone. Changing anything needs the owner password (`SITE_PASSWORD`):
+Anyone can browse. Only the owner can change the watchlist, watched list and ratings.
 
-- **Website:** sign in at `/login`; an httpOnly cookie holds a token derived from the password (not the password itself).
+- **Website:** sign in at `/login`. Visitors who try to edit are sent there with a "locked" notice.
 - **TV app / API:** `POST /api/v1/login {"password": "..."}` returns a token; send it as `Authorization: Bearer <token>`
-  on `PUT`/`DELETE /api/v1/watchlist/<id>`. The TV app does this from its About tab.
-- Login attempts and API calls are rate-limited per IP, so a stray script can't guess the password or burn the TMDB quota.
+  on writes. The TV app does this from its About tab.
+- Cookies and tokens are derived from the password, never the password itself. Logins and API calls are rate-limited per IP.
 
-- **Headers:** `X-Frame-Options: DENY`, `frame-ancestors 'none'`, `nosniff`, strict referrer and permissions policies.
-- **Secrets** live only in server env vars. `.env*` files are gitignored.
+## Scripts
 
-## Testing
-
-```bash
-npm test               # unit + integration (Vitest, in-memory Postgres via PGlite — no network or secrets)
-npm run test:coverage  # same, with coverage
-npm run test:e2e       # production build + Playwright, against a seeded in-memory Postgres
-```
-
-Integration tests run the real schema and route handlers: watchlist add/remove, validation, section building, and rate limits.
-CI (`.github/workflows/ci.yml`) runs all of it plus the Android checks on every push and pull request.
-
-## Data ingest
-
-`npm run ingest` populates the database from TMDB. Stages, in order:
-
-1. **genres** — upsert the TMDB genre list
-2. **pool** — pull `/discover` slices (per-genre + facet keywords) → `movies`, `movie_genres`
-3. **metadata** — keywords + production companies → `keywords`, `movie_companies`, …
-4. **imdb** — IMDb's public ratings dataset → `movies.imdb_rating` / `imdb_votes`
-5. **stats** — report the vote-weighted mean
-
-It is **resumable**: movies already enriched (`metadata_fetched_at`) are skipped. Useful flags:
-
-```bash
-npm run ingest -- --limit 200          # cap movies pulled
-npm run ingest -- --genre-pages 20     # widen per-genre depth
-npm run ingest -- --skip-metadata      # skip the keyword/company stage
-npm run ingest -- --skip-imdb          # skip the IMDb ratings stage
-```
-
-A full run takes about two minutes.
-
-### Weekly refresh (GitHub Actions)
-
-`.github/workflows/ingest.yml` runs the ingest against production every **Sunday 03:00 UTC** (and on demand from the
-Actions tab). It needs two repository secrets (*Settings → Secrets and variables → Actions*):
-
-| Secret | Value |
+| Command | What it does |
 | --- | --- |
-| `DATABASE_URL` | Production Neon **pooled** connection string |
-| `TMDB_API_KEY` | Your TMDB key |
+| `npm run dev` / `build` / `start` | Develop, build, serve |
+| `npm run lint` / `typecheck` | ESLint, TypeScript |
+| `npm test` | Unit + integration tests (in-memory Postgres, no network) |
+| `npm run test:e2e` | Production build + Playwright |
+| `npm run db:push` / `db:studio` | Push the schema / browse the database |
+| `npm run ingest` | Refresh the catalog (`-- --limit 200`, `--genre-pages 20`, `--skip-metadata`, `--skip-imdb`) |
 
-The site shows the new data within an hour (the catalog is cached for 60 minutes).
+CI (`.github/workflows/ci.yml`) runs lint, types, tests, build, e2e and the Android checks on every push.
 
-## Deployment
+## Deploy
 
-The app is **server-rendered with a database and server actions**, so it needs a Node host — GitHub Pages (static-only) will not work. Recommended: **Vercel + Neon**.
+Needs a Node host (not GitHub Pages). Vercel + Neon works:
 
-1. **Database** — create a project at [neon.tech](https://neon.tech) and copy the **pooled** connection string.
-2. **Schema** — point `DATABASE_URL` at production and push:
-   ```bash
-   DATABASE_URL="postgresql://...neon.tech/..." npx drizzle-kit push
-   ```
-3. **Data** — run the ingest against production (needs your TMDB key):
-   ```bash
-   DATABASE_URL="postgresql://...neon.tech/..." TMDB_API_KEY="..." npm run ingest
-   ```
-4. **Deploy** — import the repo at [vercel.com/new](https://vercel.com/new) and add the environment variables above.
+1. Create a Neon project and copy the pooled connection string.
+2. `DATABASE_URL="..." npx drizzle-kit push`, then `DATABASE_URL="..." TMDB_API_KEY="..." npm run ingest`.
+3. Import the repo at [vercel.com/new](https://vercel.com/new) and set the variables above.
 
-> **Env vars must never be committed.** `.env` is gitignored.
+`.github/workflows/ingest.yml` refreshes the catalog every Sunday 03:00 UTC. It needs the repo secrets
+`DATABASE_URL` and `TMDB_API_KEY`. The site picks up new data within an hour.
 
-## Project Structure
+## Layout
 
 ```
-src/
-├── app/
-│   ├── page.tsx                # Home — six sections over the whole catalog
-│   ├── genre/[slug]/page.tsx   # Per-genre pages (sections or a flat filtered grid)
-│   ├── watchlist/              # Saved films (+ server actions)
-│   ├── watched/                # Watched + ratings (+ server actions)
-│   ├── api/v1/                 # JSON API for the TV app
-│   ├── movie/[id]/page.tsx     # Detail: overview, trailer, watchlist, watched/rating
-│   ├── search/page.tsx         # TMDB title search
-│   └── browse-actions.ts       # Server action: incremental section loading
-├── components/                 # SectionRow, cards, movie details, …
-├── lib/
-│   ├── tmdb.ts                 # TMDB client
-│   ├── scoring.ts              # WR / settled / obscurity / gates
-│   ├── taxonomy.ts             # Genre pages + their filters + sections
-│   ├── browse.ts               # Catalog load, scoring, section building
-│   ├── rate-limit.ts           # Postgres-backed API rate limiter
-│   ├── api.ts                  # /api/v1 helpers (guard, validation)
-│   ├── watchlist.ts            # The watchlist
-│   └── watched.ts              # Watched + ratings
-└── db/
-    ├── index.ts                # Drizzle connection
-    └── schema.ts               # Tables
-scripts/
-└── ingest.ts                   # TMDB → Postgres ingest
-tests/                          # unit/, integration/ (Vitest), e2e/ (Playwright), helpers/
-android-tv/                     # Android TV app
+src/app/      pages, server actions, /api/v1 (used by the TV app)
+src/lib/      tmdb client, scoring, browse (catalog + sections), watchlist, watched, auth, rate limit
+src/db/       Drizzle schema + connection
+scripts/      ingest.ts (TMDB → Postgres)
+tests/        unit, integration (Vitest), e2e (Playwright)
+android-tv/   Android TV app
 ```
 
-## Available Scripts
-
-```bash
-npm run dev        # Development server
-npm run build      # Production build
-npm run start      # Production server
-npm run lint       # ESLint
-npm run typecheck  # TypeScript
-npm test           # Unit + integration tests
-npm run test:e2e   # End-to-end tests
-npm run db:push    # Push schema to the database
-npm run db:studio  # Drizzle Studio
-npm run ingest     # Populate/refresh the catalog from TMDB
-```
-
-## Attribution
+## Credits
 
 This product uses the TMDB API but is not endorsed or certified by TMDB.
+Ratings courtesy of [IMDb](https://www.imdb.com) (public datasets, personal non-commercial use).
 
-Ratings information courtesy of [IMDb](https://www.imdb.com). Used with permission. (IMDb's public datasets are licensed for personal, non-commercial use.)
-
-## License
-
-MIT
+MIT licensed.

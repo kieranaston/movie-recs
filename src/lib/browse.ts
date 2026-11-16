@@ -207,7 +207,7 @@ const SECTION_PAGE = 20;
  * Build every row's full ranked list. Rows are unlimited (they scroll through everything that fits
  * the lens, so no eligible film is unreachable); only the first screen is kept free of repeats.
  */
-async function compute(genreId?: number, filter?: GenreFilter) {
+async function computeUncached(genreId?: number, filter?: GenreFilter) {
   const catalog = await getCatalog();
   const target = filter ? await resolveFilterTarget(filter) : [];
 
@@ -263,6 +263,28 @@ async function compute(genreId?: number, filter?: GenreFilter) {
   return { full, matched };
 }
 
+// Scoring the whole catalog is the expensive step, and the answer only changes on ingest. Keep each
+// (genre, filter) result in memory for a few minutes so repeat visits and "load more" are instant.
+const MEMO_MS = 5 * 60_000;
+const MEMO_MAX = 100;
+const memo = new Map<string, { at: number; value: ReturnType<typeof computeUncached> }>();
+
+/** Forget remembered results (tests, or after changing the catalog). */
+export function resetBrowseMemo() {
+  memo.clear();
+}
+
+function compute(genreId?: number, filter?: GenreFilter) {
+  const key = `${genreId ?? ''}|${filter ? `${filter.kind}:${filter.label}` : ''}`;
+  const hit = memo.get(key);
+  if (hit && Date.now() - hit.at < MEMO_MS) return hit.value;
+
+  const value = computeUncached(genreId, filter);
+  value.catch(() => memo.delete(key)); // never keep a failure
+  if (memo.size >= MEMO_MAX) memo.delete(memo.keys().next().value as string);
+  memo.set(key, { at: Date.now(), value });
+  return value;
+}
 
 export interface BrowseResult {
   mode: 'sections' | 'list';

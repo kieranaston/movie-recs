@@ -39,8 +39,8 @@ export async function MovieDetails({ params }: { params: Promise<{ id: string }>
   }
 
   const trailerKey = getTrailerKey(movie);
-  const inWatchlist = (await getWatchlistIds()).includes(movieId);
-  const watchedRatings = await getWatchedRatings();
+  const [watchlistIds, watchedRatings] = await Promise.all([getWatchlistIds(), getWatchedRatings()]);
+  const inWatchlist = watchlistIds.includes(movieId);
   const watched = watchedRatings.has(movieId);
   const rating = watchedRatings.get(movieId) ?? null;
 

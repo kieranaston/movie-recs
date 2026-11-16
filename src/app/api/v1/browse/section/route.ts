@@ -1,4 +1,4 @@
-import { error, guard, parseGenre, parseInt0, toApiCard } from '@/lib/api';
+import { CACHEABLE, error, guard, parseGenre, parseInt0, toApiCard } from '@/lib/api';
 import { getSectionMovies } from '@/lib/browse';
 import { SECTIONS, type SectionId } from '@/lib/taxonomy';
 
@@ -20,5 +20,5 @@ export async function GET(request: Request) {
     offset: parseInt0(params.get('offset'), 0, 100_000),
     limit: parseInt0(params.get('limit'), 20, 50) || 20,
   });
-  return Response.json({ movies: movies.map(toApiCard), total });
+  return Response.json({ movies: movies.map(toApiCard), total }, CACHEABLE);
 }

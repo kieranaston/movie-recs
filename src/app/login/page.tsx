@@ -4,7 +4,8 @@ import { logout } from './actions';
 
 export const dynamic = 'force-dynamic';
 
-export default async function LoginPage() {
+export default async function LoginPage({ searchParams }: { searchParams: Promise<{ locked?: string }> }) {
+  const { locked } = await searchParams;
   const signedIn = await isOwner();
   return (
     <div className="mx-auto max-w-sm px-4 py-10">
@@ -16,6 +17,11 @@ export default async function LoginPage() {
         </form>
       ) : (
         <>
+          {locked && (
+            <p role="status" className="mb-3 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-200">
+              Editing is locked to the developer. Browsing is open to everyone — sign in only if this is your site.
+            </p>
+          )}
           <p className="mb-3 text-gray-400">Only the owner can change the watchlist and ratings.</p>
           <LoginForm />
         </>

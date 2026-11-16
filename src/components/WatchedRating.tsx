@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
 import { Check, Eye, X } from 'lucide-react';
 import { setRating, setWatched } from '@/app/watched/actions';
 
@@ -31,6 +32,7 @@ export function WatchedRating({
   const [rating, setRatingState] = useState<number | null>(initialRating);
   const [draft, setDraft] = useState<number | null>(null); // live slider position before it's saved
   const [pending, startTransition] = useTransition();
+  const router = useRouter();
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const latest = useRef<number | null>(null);
 
@@ -53,6 +55,7 @@ export function WatchedRating({
       } catch {
         setWatchedState(!next);
         setRatingState(previousRating); // the optimistic clear above has to be undone too
+        router.push('/login?locked=1'); // editing is owner-only
       }
     });
   };
@@ -65,6 +68,7 @@ export function WatchedRating({
         await setRating(tmdbId, value);
       } catch {
         setRatingState(previous);
+        router.push('/login?locked=1'); // editing is owner-only
       }
     });
   };

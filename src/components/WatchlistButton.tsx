@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
 import { Bookmark, BookmarkCheck } from 'lucide-react';
 import { addToWatchlist, removeFromWatchlist } from '@/app/watchlist/actions';
 
@@ -18,6 +19,7 @@ export function WatchlistButton({
 }) {
   const [saved, setSaved] = useState(inWatchlist);
   const [pending, startTransition] = useTransition();
+  const router = useRouter();
 
   const toggle = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -30,6 +32,7 @@ export function WatchlistButton({
         else await removeFromWatchlist(tmdbId);
       } catch {
         setSaved(!next); // roll back the optimistic toggle
+        router.push('/login?locked=1'); // editing is owner-only
       }
     });
   };
