@@ -148,9 +148,6 @@ private fun trailerWebView(
     onPlaying: (Boolean) -> Unit,
 ): WebView {
     val main = Handler(Looper.getMainLooper())
-    // One CSS pixel = one screen pixel. Android TVs usually report a 960×540 CSS viewport on a 1080p
-    // screen, and YouTube picks the stream quality from the player's CSS size, so it would stay near 540p.
-    val scale = 1f / context.resources.displayMetrics.density
     return WebView(context).apply {
         // Remote keys go to the Compose box around this view, which drives the player.
         isFocusable = false
@@ -158,7 +155,6 @@ private fun trailerWebView(
         keepScreenOn = true
         setBackgroundColor(android.graphics.Color.BLACK)
         settings.javaScriptEnabled = true
-        settings.useWideViewPort = true // honour the viewport scale below
         settings.mediaPlaybackRequiresUserGesture = false // autoplay with sound
         webChromeClient = WebChromeClient()
         addJavascriptInterface(
@@ -171,7 +167,7 @@ private fun trailerWebView(
         )
         // YouTube's embed refuses to play without an identifiable https origin (error 153),
         // so the page is given the website's address; nothing is loaded from it.
-        loadDataWithBaseURL(EMBED_ORIGIN, playerHtml(key, scale), "text/html", "utf-8", null)
+        loadDataWithBaseURL(EMBED_ORIGIN, playerHtml(key), "text/html", "utf-8", null)
     }
 }
 
@@ -181,11 +177,11 @@ private const val EMBED_ORIGIN = "https://mrecs.vercel.app/"
  * Full-screen IFrame player, sized in pixels: sized with CSS percentages it plays sound over a
  * black screen on Android TV. Errors 101/150 (embedding disabled) and 153 fall back to the YouTube app.
  * YouTube no longer lets apps choose the quality (setPlaybackQuality is unsupported); it picks one
- * from the player's size and the connection, so the player is given the full screen's pixel size.
+ * from the player's size and the connection.
  */
-private fun playerHtml(key: String, scale: Float) = """
+private fun playerHtml(key: String) = """
 <!doctype html><html><head>
-<meta name="viewport" content="width=device-width,initial-scale=$scale,minimum-scale=$scale,maximum-scale=$scale">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <style>body{margin:0;background:#000;overflow:hidden}</style>
 </head><body><div id="p"></div>
 <script>
