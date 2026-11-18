@@ -96,6 +96,7 @@ fun DetailsContent(
     onPlayTrailer: (String) -> Unit,
 ) {
     val primary = remember { FocusRequester() }
+    var expanded by remember(movie.tmdbId) { mutableStateOf(false) }
     val background = MaterialTheme.colorScheme.background
 
     Box(Modifier.fillMaxSize()) {
@@ -130,10 +131,10 @@ fun DetailsContent(
             Text(
                 movie.overview ?: "No overview available.",
                 style = MaterialTheme.typography.bodyLarge,
-                maxLines = 3,
+                maxLines = if (expanded) Int.MAX_VALUE else 3,
                 overflow = TextOverflow.Ellipsis,
             )
-            Credits(movie)
+            if (!expanded) Credits(movie)
 
             Spacer(Modifier.height(24.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -152,11 +153,19 @@ fun DetailsContent(
                     Spacer(Modifier.width(ButtonDefaults.IconSpacing))
                     Text(if (inWatchlist) "In Watchlist" else "Add to Watchlist")
                 }
+                if ((movie.overview?.length ?: 0) > LONG_OVERVIEW) {
+                    OutlinedButton(onClick = { expanded = !expanded }) {
+                        Text(if (expanded) "Less" else "More")
+                    }
+                }
             }
         }
     }
     LaunchedEffect(movie.tmdbId) { runCatching { primary.requestFocus() } }
 }
+
+/** Overviews longer than this (about three lines) get a More/Less button. */
+private const val LONG_OVERVIEW = 200
 
 /** "Directed by …" and the top-billed cast, as on the website's movie page. */
 @Composable
