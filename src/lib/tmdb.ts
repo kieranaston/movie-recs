@@ -33,6 +33,9 @@ export interface TMDBVideo {
   site: string;
   type: string;
   official: boolean;
+  /** Resolution TMDB lists for the video: 360, 480, 720, 1080 or 2160. */
+  size?: number;
+  published_at?: string;
 }
 
 export interface TMDBMovieDetail extends TMDBMovie {
@@ -114,9 +117,17 @@ export async function getMovieDetail(movieId: number): Promise<TMDBMovieDetail> 
   return fetchTMDB<TMDBMovieDetail>(`/movie/${movieId}`, { append_to_response: 'videos,credits' });
 }
 
-/** Best available YouTube trailer/teaser key, or null. */
+/** Highest resolution first, then newest. */
+function byQuality(a: TMDBVideo, b: TMDBVideo): number {
+  return (b.size ?? 0) - (a.size ?? 0) || (b.published_at ?? '').localeCompare(a.published_at ?? '');
+}
+
+/**
+ * Best YouTube video key, or null: an official trailer if there is one, otherwise any trailer,
+ * teaser, then anything; within each group the highest resolution wins, then the newest.
+ */
 export function getTrailerKey(movie: TMDBMovieDetail): string | null {
-  const vids = (movie.videos?.results ?? []).filter((v) => v.site === 'YouTube');
+  const vids = (movie.videos?.results ?? []).filter((v) => v.site === 'YouTube').sort(byQuality);
   const pick =
     vids.find((v) => v.type === 'Trailer' && v.official) ??
     vids.find((v) => v.type === 'Trailer') ??
