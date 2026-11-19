@@ -46,7 +46,6 @@ async function main() {
       release_date: '2008-07-16', vote_average: 8.5, vote_count: 30000, genre_ids: [28], genres: [{ id: 28, name: 'Action' }],
       runtime: 152, status: 'Released', tagline: null, homepage: null, imdb_id: 'tt0468569', original_title: 'Fake Feature',
       original_language: 'en', production_companies: [], production_countries: [], spoken_languages: [],
-      videos: { results: [] },
       credits: {
         cast: [
           { id: 1, name: 'Christian Bale', character: 'Bruce Wayne', profile_path: null, order: 0 },

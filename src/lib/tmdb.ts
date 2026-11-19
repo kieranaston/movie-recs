@@ -26,18 +26,6 @@ export interface TMDBSearchResponse {
   total_results: number;
 }
 
-export interface TMDBVideo {
-  id: string;
-  key: string;
-  name: string;
-  site: string;
-  type: string;
-  official: boolean;
-  /** Resolution TMDB lists for the video: 360, 480, 720, 1080 or 2160. */
-  size?: number;
-  published_at?: string;
-}
-
 export interface TMDBMovieDetail extends TMDBMovie {
   genres: Array<{ id: number; name: string }>;
   runtime: number | null;
@@ -48,7 +36,6 @@ export interface TMDBMovieDetail extends TMDBMovie {
   production_companies: Array<{ id: number; name: string; logo_path: string | null; origin_country: string }>;
   production_countries: Array<{ iso_3166_1: string; name: string }>;
   spoken_languages: Array<{ english_name: string; iso_639_1: string; name: string }>;
-  videos?: { results: TMDBVideo[] };
   credits?: { cast: TMDBCastMember[]; crew: TMDBCrewMember[] };
 }
 
@@ -114,26 +101,7 @@ export async function searchMovies(query: string, page = 1): Promise<TMDBSearchR
 }
 
 export async function getMovieDetail(movieId: number): Promise<TMDBMovieDetail> {
-  return fetchTMDB<TMDBMovieDetail>(`/movie/${movieId}`, { append_to_response: 'videos,credits' });
-}
-
-/** Highest resolution first, then newest. */
-function byQuality(a: TMDBVideo, b: TMDBVideo): number {
-  return (b.size ?? 0) - (a.size ?? 0) || (b.published_at ?? '').localeCompare(a.published_at ?? '');
-}
-
-/**
- * Best YouTube video key, or null: an official trailer if there is one, otherwise any trailer,
- * teaser, then anything; within each group the highest resolution wins, then the newest.
- */
-export function getTrailerKey(movie: TMDBMovieDetail): string | null {
-  const vids = (movie.videos?.results ?? []).filter((v) => v.site === 'YouTube').sort(byQuality);
-  const pick =
-    vids.find((v) => v.type === 'Trailer' && v.official) ??
-    vids.find((v) => v.type === 'Trailer') ??
-    vids.find((v) => v.type === 'Teaser') ??
-    vids[0];
-  return pick?.key ?? null;
+  return fetchTMDB<TMDBMovieDetail>(`/movie/${movieId}`, { append_to_response: 'credits' });
 }
 
 export async function getGenres(): Promise<TMDBGenresResponse> {

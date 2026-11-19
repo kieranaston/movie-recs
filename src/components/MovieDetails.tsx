@@ -2,12 +2,11 @@ import { notFound } from 'next/navigation';
 import Image from 'next/image';
 import { Calendar, Clock, Star, Film, ExternalLink, User } from 'lucide-react';
 import {
-  getMovieDetail, getPosterUrl, getBackdropUrl, getProfileUrl, extractYear, getTrailerKey,
+  getMovieDetail, getPosterUrl, getBackdropUrl, getProfileUrl, extractYear,
   type TMDBCastMember, type TMDBMovieDetail,
 } from '@/lib/tmdb';
 import { WatchlistButton } from '@/components/WatchlistButton';
 import { WatchedRating } from '@/components/WatchedRating';
-import { TrailerButton } from '@/components/TrailerButton';
 import { ExpandableText } from '@/components/ExpandableText';
 import { getWatchlistIds } from '@/lib/watchlist';
 import { getWatchedRatings } from '@/lib/watched';
@@ -38,7 +37,6 @@ export async function MovieDetails({ params }: { params: Promise<{ id: string }>
     );
   }
 
-  const trailerKey = getTrailerKey(movie);
   const [watchlistIds, watchedRatings] = await Promise.all([getWatchlistIds(), getWatchedRatings()]);
   const inWatchlist = watchlistIds.includes(movieId);
   const watched = watchedRatings.has(movieId);
@@ -105,7 +103,7 @@ export async function MovieDetails({ params }: { params: Promise<{ id: string }>
             </div>
           </div>
           <div className="col-span-2 flex flex-wrap gap-2 sm:col-span-1 sm:col-start-2 sm:self-start">
-            <Actions movie={movie} trailerKey={trailerKey} inWatchlist={inWatchlist} watched={watched} rating={rating} />
+            <Actions movie={movie} inWatchlist={inWatchlist} watched={watched} rating={rating} />
           </div>
         </div>
 
@@ -202,10 +200,9 @@ function CastList({ cast }: { cast: TMDBCastMember[] }) {
   );
 }
 
-function Actions({ movie, trailerKey, inWatchlist, watched, rating }: { movie: TMDBMovieDetail; trailerKey: string | null; inWatchlist: boolean; watched: boolean; rating: number | null }) {
+function Actions({ movie, inWatchlist, watched, rating }: { movie: TMDBMovieDetail; inWatchlist: boolean; watched: boolean; rating: number | null }) {
   return (
     <>
-      {trailerKey && <TrailerButton youtubeKey={trailerKey} title={movie.title} />}
       <WatchlistButton
         tmdbId={movie.id}
         inWatchlist={inWatchlist}

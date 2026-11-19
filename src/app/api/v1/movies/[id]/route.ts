@@ -1,5 +1,5 @@
 import { error, guard, parseId } from '@/lib/api';
-import { getMovieDetail, getTrailerKey } from '@/lib/tmdb';
+import { getMovieDetail } from '@/lib/tmdb';
 import { getWatchlistIds } from '@/lib/watchlist';
 import { yearOf } from '@/lib/scoring';
 
@@ -26,7 +26,6 @@ export async function GET(request: Request, ctx: RouteContext<'/api/v1/movies/[i
       genres: (movie.genres ?? []).map((g) => g.name),
       posterPath: movie.poster_path,
       backdropPath: movie.backdrop_path,
-      trailerKey: getTrailerKey(movie),
       directors: (movie.credits?.crew ?? []).filter((c) => c.job === 'Director').map((c) => c.name),
       cast: [...(movie.credits?.cast ?? [])]
         .sort((a, b) => a.order - b.order)

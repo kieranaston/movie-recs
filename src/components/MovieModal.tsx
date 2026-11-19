@@ -14,8 +14,7 @@ export function MovieModal({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      // Let the trailer player (above this popup) handle its own Escape.
-      if (e.key === 'Escape' && !document.querySelector('[data-trailer-open]')) router.back();
+      if (e.key === 'Escape') router.back();
     };
     document.addEventListener('keydown', onKey);
     const overflow = document.body.style.overflow;
@@ -31,7 +30,6 @@ export function MovieModal({ children }: { children: React.ReactNode }) {
 
   return (
     <div
-      // No backdrop-filter here: it would anchor position:fixed children (the trailer player) to this box.
       className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/80 p-0 sm:p-6"
       onClick={(e) => e.target === e.currentTarget && router.back()} // only clicks on the backdrop itself
     >

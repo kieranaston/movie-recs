@@ -7,7 +7,7 @@ Next.js, Tailwind, Drizzle + PostgreSQL, TMDB. There's also an [Android TV app](
 
 <p>
   <img src="docs/home.jpg" alt="Home page with Top Rated and Hidden Gems rows" width="49%">
-  <img src="docs/movie.jpg" alt="Movie page with trailer, watchlist and watched buttons" width="49%">
+  <img src="docs/movie.jpg" alt="Movie page with watchlist and watched buttons" width="49%">
 </p>
 
 ## Features
@@ -16,7 +16,7 @@ Next.js, Tailwind, Drizzle + PostgreSQL, TMDB. There's also an [Android TV app](
 - **Six rows everywhere** — Top Rated · Hidden Gems · Fun · Classics · Recent · Popular — ranked by a Bayesian rating
   with recency and "underseen" adjustments. Low-quality and unreleased titles are hidden.
 - **Watchlist, watched list and 0.5–10 ratings**, shared by the site and the TV.
-- **Trailers** and a TMDB search.
+- A TMDB search.
 
 ## Run it locally
 

@@ -120,7 +120,6 @@ describe('browse and search', () => {
     vi.mocked(getMovieDetail).mockResolvedValueOnce({
       id: 155, title: 'The Dark Knight', overview: 'Batman', release_date: '2008-07-16', runtime: 152,
       vote_average: 8.5, vote_count: 30000, genres: [{ id: 28, name: 'Action' }], poster_path: '/p.jpg', backdrop_path: null,
-      videos: { results: [{ key: 'EXeTwQWrcwY', site: 'YouTube', type: 'Trailer', official: true }] },
       credits: {
         cast: [
           { id: 2, name: 'Heath Ledger', character: 'Joker', profile_path: '/h.jpg', order: 1 },
@@ -130,7 +129,6 @@ describe('browse and search', () => {
       },
     } as never);
     const body = await (await movieRoute.GET(req('/movies/155'), ctx('155'))).json();
-    expect(body.trailerKey).toBe('EXeTwQWrcwY');
     expect(body.directors).toEqual(['Christopher Nolan']);
     expect(body.cast).toEqual([
       { name: 'Christian Bale', character: 'Bruce Wayne', profilePath: null },
