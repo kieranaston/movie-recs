@@ -49,7 +49,6 @@ data class MovieDetail(
     val genres: List<String> = emptyList(),
     val posterPath: String? = null,
     val backdropPath: String? = null,
-    val trailerKey: String? = null,
     val directors: List<String> = emptyList(),
     val cast: List<CastMember> = emptyList(),
 ) {

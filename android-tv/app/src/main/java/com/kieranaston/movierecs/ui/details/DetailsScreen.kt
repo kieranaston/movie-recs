@@ -36,7 +36,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.tv.material3.Button
 import androidx.tv.material3.ButtonDefaults
 import androidx.tv.material3.Icon
 import androidx.tv.material3.MaterialTheme
@@ -68,9 +67,9 @@ class DetailsViewModel(private val api: Api, private val tmdbId: Int) : ViewMode
     }
 }
 
-/** Stateful entry point: loads the movie and wires the watchlist and trailer actions. */
+/** Stateful entry point: loads the movie and wires the watchlist action. */
 @Composable
-fun DetailsScreen(tmdbId: Int, onPlayTrailer: (String) -> Unit) {
+fun DetailsScreen(tmdbId: Int) {
     val app = app()
     val vm = viewModel(key = "movie:$tmdbId") { DetailsViewModel(app.api, tmdbId) }
     val watchlist by app.watchlist.state.collectAsStateWithLifecycle()
@@ -82,7 +81,6 @@ fun DetailsScreen(tmdbId: Int, onPlayTrailer: (String) -> Unit) {
             movie = d.value,
             inWatchlist = app.watchlist.contains(watchlist, tmdbId),
             onToggleWatchlist = { app.watchlist.toggle(d.value.toMovie()) },
-            onPlayTrailer = onPlayTrailer,
         )
     }
 }
@@ -93,8 +91,7 @@ fun DetailsContent(
     movie: MovieDetail,
     inWatchlist: Boolean,
     onToggleWatchlist: () -> Unit,
-    onPlayTrailer: (String) -> Unit,
-) {
+    ) {
     val primary = remember { FocusRequester() }
     var expanded by remember(movie.tmdbId) { mutableStateOf(false) }
     val background = MaterialTheme.colorScheme.background
@@ -138,17 +135,7 @@ fun DetailsContent(
 
             Spacer(Modifier.height(24.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                movie.trailerKey?.let { key ->
-                    Button(onClick = { onPlayTrailer(key) }, modifier = Modifier.focusRequester(primary)) {
-                        Icon(AppIcons.Play, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
-                        Spacer(Modifier.width(ButtonDefaults.IconSpacing))
-                        Text("Trailer")
-                    }
-                }
-                OutlinedButton(
-                    onClick = onToggleWatchlist,
-                    modifier = if (movie.trailerKey == null) Modifier.focusRequester(primary) else Modifier,
-                ) {
+                OutlinedButton(onClick = onToggleWatchlist, modifier = Modifier.focusRequester(primary)) {
                     Icon(if (inWatchlist) AppIcons.Check else AppIcons.Add, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
                     Spacer(Modifier.width(ButtonDefaults.IconSpacing))
                     Text(if (inWatchlist) "In Watchlist" else "Add to Watchlist")

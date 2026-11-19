@@ -57,7 +57,6 @@ CI runs both (plus lint and the release build) on every push.
   the emulator host is allowed in debug builds only.
 - No backups, no logging of requests; R8 shrinks and obfuscates release builds.
 - Requests identify the app (`MovieRecsTV/<version> (<model>)`); image requests to TMDB don't carry it.
-- Trailer links are built only from well-formed YouTube video ids.
 
 ## Emulator
 

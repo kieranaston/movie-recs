@@ -17,7 +17,6 @@ import com.kieranaston.movierecs.ui.components.app
 import com.kieranaston.movierecs.ui.details.DetailsScreen
 import com.kieranaston.movierecs.ui.genres.GenreScreen
 import com.kieranaston.movierecs.ui.theme.Motion
-import com.kieranaston.movierecs.ui.trailer.openInYouTube
 import kotlinx.serialization.Serializable
 
 @Serializable private object MainRoute
@@ -53,7 +52,7 @@ fun AppNavigation() {
             GenreScreen(r.slug, r.name, r.filters, onOpen = { m -> nav.navigate(DetailsRoute(m.tmdbId)) })
         }
         composable<DetailsRoute> {
-            DetailsScreen(it.toRoute<DetailsRoute>().tmdbId, onPlayTrailer = { key -> openInYouTube(context, key) })
+            DetailsScreen(it.toRoute<DetailsRoute>().tmdbId)
         }
     }
 }

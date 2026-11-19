@@ -40,36 +40,24 @@ import org.junit.runner.RunWith
 class UiTest {
     @get:Rule val compose = createComposeRule()
 
-    private val detail = MovieDetail(tmdbId = 329865, title = "Arrival", year = 2016, runtime = 116, trailerKey = "7W1m5ER3I1Y")
+    private val detail = MovieDetail(tmdbId = 329865, title = "Arrival", year = 2016, runtime = 116)
 
     @OptIn(ExperimentalTestApi::class)
     @Test fun detailsWiresItsActionsToTheRemote() {
         var toggles = 0
-        var trailer: String? = null
-        compose.setContent { MovieTheme { DetailsContent(detail, inWatchlist = false, onToggleWatchlist = { toggles++ }, onPlayTrailer = { trailer = it }) } }
+        compose.setContent { MovieTheme { DetailsContent(detail, inWatchlist = false, onToggleWatchlist = { toggles++ }) } }
         val button = { label: String -> compose.onNode(hasText(label) and isFocusable()) }
 
-        button("Trailer").assertIsFocused() // primary action takes focus for the remote
-        compose.onRoot().performKeyInput { pressKey(Key.DirectionCenter) }
-        assertEquals("7W1m5ER3I1Y", trailer)
-
-        compose.onRoot().performKeyInput { pressKey(Key.DirectionRight) }
-        button("Add to Watchlist").assertIsFocused()
+        button("Add to Watchlist").assertIsFocused() // primary action takes focus for the remote
         compose.onRoot().performKeyInput { pressKey(Key.DirectionCenter) }
         assertEquals(1, toggles)
     }
 
     @Test fun detailsListsDirectorsAndCast() {
         val cast = listOf("Amy Adams", "Jeremy Renner").map { CastMember(it) }
-        compose.setContent { MovieTheme { DetailsContent(detail.copy(directors = listOf("Denis Villeneuve"), cast = cast), inWatchlist = false, onToggleWatchlist = {}, onPlayTrailer = {}) } }
+        compose.setContent { MovieTheme { DetailsContent(detail.copy(directors = listOf("Denis Villeneuve"), cast = cast), inWatchlist = false, onToggleWatchlist = {}) } }
         compose.onNodeWithText("Directed by  Denis Villeneuve").assertExists()
         compose.onNodeWithText("Starring  Amy Adams, Jeremy Renner").assertExists()
-    }
-
-    @Test fun detailsWithoutTrailerFocusesWatchlist() {
-        compose.setContent { MovieTheme { DetailsContent(detail.copy(trailerKey = null), inWatchlist = true, onToggleWatchlist = {}, onPlayTrailer = {}) } }
-        compose.onNodeWithText("Trailer").assertDoesNotExist()
-        compose.onNode(hasText("In Watchlist") and isFocusable()).assertIsFocused()
     }
 
     @OptIn(ExperimentalTestApi::class)

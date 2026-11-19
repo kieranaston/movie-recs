@@ -45,7 +45,6 @@ private val sampleDetail = MovieDetail(
     runtime = 116,
     voteAverage = 7.6,
     genres = listOf("Drama", "Science Fiction", "Mystery"),
-    trailerKey = "7W1m5ER3I1Y",
 )
 
 @Composable
@@ -86,5 +85,5 @@ private fun GenreTilesPreview() = Frame {
 @Preview(name = "Details", device = Devices.TV_1080p)
 @Composable
 private fun DetailsPreview() = Frame {
-    DetailsContent(sampleDetail, inWatchlist = false, onToggleWatchlist = {}, onPlayTrailer = {})
+    DetailsContent(sampleDetail, inWatchlist = false, onToggleWatchlist = {})
 }
