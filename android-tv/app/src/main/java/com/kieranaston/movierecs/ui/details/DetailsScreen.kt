@@ -110,7 +110,7 @@ fun DetailsContent(
         Column(
             Modifier
                 .fillMaxHeight()
-                .fillMaxWidth(0.58f)
+                .fillMaxWidth(if (expanded) 0.7f else 0.58f)
                 .padding(start = Dimens.Gutter, top = 56.dp, bottom = Dimens.TopInset),
         ) {
             Text(movie.title, style = MaterialTheme.typography.displaySmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
@@ -120,14 +120,16 @@ fun DetailsContent(
                 Spacer(Modifier.height(6.dp))
                 Text(movie.genres.joinToString("  ·  "), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            movie.tagline?.let {
+            movie.tagline?.takeUnless { expanded }?.let {
                 Spacer(Modifier.height(16.dp))
                 Text(it, style = MaterialTheme.typography.titleSmall, fontStyle = FontStyle.Italic, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Spacer(Modifier.height(12.dp))
             Text(
                 movie.overview ?: "No overview available.",
-                style = MaterialTheme.typography.bodyLarge,
+                // Expanded: smaller text that only takes the space left over, so the buttons stay on screen.
+                modifier = if (expanded) Modifier.weight(1f, fill = false) else Modifier,
+                style = if (expanded) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.bodyLarge,
                 maxLines = if (expanded) Int.MAX_VALUE else 3,
                 overflow = TextOverflow.Ellipsis,
             )

@@ -9,6 +9,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -58,6 +59,16 @@ class UiTest {
         compose.setContent { MovieTheme { DetailsContent(detail.copy(directors = listOf("Denis Villeneuve"), cast = cast), inWatchlist = false, onToggleWatchlist = {}) } }
         compose.onNodeWithText("Directed by  Denis Villeneuve").assertExists()
         compose.onNodeWithText("Starring  Amy Adams, Jeremy Renner").assertExists()
+    }
+
+    @OptIn(ExperimentalTestApi::class)
+    @Test fun expandedOverviewKeepsTheButtonsOnScreen() {
+        val long = detail.copy(overview = "A long sentence about the plot. ".repeat(80), tagline = "Why are they here?")
+        compose.setContent { MovieTheme { DetailsContent(long, inWatchlist = false, onToggleWatchlist = {}) } }
+        compose.onNode(hasText("More") and isFocusable()).requestFocus()
+        compose.onRoot().performKeyInput { pressKey(Key.DirectionCenter) } // TV buttons ignore touch
+        compose.onNodeWithText("Less").assertIsDisplayed()
+        compose.onNodeWithText("Add to Watchlist").assertIsDisplayed()
     }
 
     @OptIn(ExperimentalTestApi::class)
