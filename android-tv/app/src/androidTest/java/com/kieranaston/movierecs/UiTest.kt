@@ -2,6 +2,15 @@ package com.kieranaston.movierecs
 
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.requiredSize
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.test.performSemanticsAction
+import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.Column
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -9,7 +18,6 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.ExperimentalTestApi
-import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -33,6 +41,7 @@ import com.kieranaston.movierecs.ui.focusFirstOnDown
 import com.kieranaston.movierecs.ui.genres.GenreTile
 import com.kieranaston.movierecs.ui.theme.MovieTheme
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -61,14 +70,31 @@ class UiTest {
         compose.onNodeWithText("Starring  Amy Adams, Jeremy Renner").assertExists()
     }
 
-    @OptIn(ExperimentalTestApi::class)
-    @Test fun expandedOverviewKeepsTheButtonsOnScreen() {
-        val long = detail.copy(overview = "A long sentence about the plot. ".repeat(80), tagline = "Why are they here?")
-        compose.setContent { MovieTheme { DetailsContent(long, inWatchlist = false, onToggleWatchlist = {}) } }
-        compose.onNode(hasText("More") and isFocusable()).requestFocus()
-        compose.onRoot().performKeyInput { pressKey(Key.DirectionCenter) } // TV buttons ignore touch
-        compose.onNodeWithText("Less").assertIsDisplayed()
-        compose.onNodeWithText("Add to Watchlist").assertIsDisplayed()
+    /** Worst case on a TV-sized screen: a 1,000-character overview with a two-line title, tagline and full credits. */
+    @Test fun longestOverviewFitsWithoutBeingCut() {
+        val overview = "The quiet stranger returns home to settle an old family score. ".repeat(16)
+        val worst = detail.copy(
+            title = "The Assassination of Jesse James by the Coward Robert Ford",
+            overview = overview,
+            tagline = "Why are they here?",
+            genres = listOf("Drama", "Western"),
+            directors = listOf("Denis Villeneuve"),
+            cast = List(6) { CastMember("Performer Number $it") },
+        )
+        compose.setContent {
+            // The TV is 960 x 540 dp; CI's emulator is not, so pin the size and density.
+            BoxWithConstraints {
+                val density = Density(constraints.maxWidth / 960f, fontScale = 1f)
+                CompositionLocalProvider(LocalDensity provides density) {
+                    Box(Modifier.requiredSize(960.dp, 540.dp)) {
+                        MovieTheme { DetailsContent(worst, inWatchlist = false, onToggleWatchlist = {}) }
+                    }
+                }
+            }
+        }
+        val layouts = mutableListOf<TextLayoutResult>()
+        compose.onNodeWithText(overview).performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(layouts) }
+        assertFalse(layouts.single().hasVisualOverflow)
     }
 
     @OptIn(ExperimentalTestApi::class)

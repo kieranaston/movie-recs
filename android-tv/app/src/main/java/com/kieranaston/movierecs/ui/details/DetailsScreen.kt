@@ -93,7 +93,10 @@ fun DetailsContent(
     onToggleWatchlist: () -> Unit,
     ) {
     val primary = remember { FocusRequester() }
-    var expanded by remember(movie.tmdbId) { mutableStateOf(false) }
+    val overview = movie.overview ?: "No overview available."
+    // The whole overview is always shown, so longer ones get smaller, tighter surroundings.
+    val long = overview.length > LONG_OVERVIEW
+    val veryLong = overview.length > VERY_LONG_OVERVIEW
     val background = MaterialTheme.colorScheme.background
 
     Box(Modifier.fillMaxSize()) {
@@ -103,37 +106,42 @@ fun DetailsContent(
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize(),
         )
-        // Scrims keep text readable over any backdrop.
-        Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(0f to background, 0.45f to background.copy(alpha = 0.85f), 1f to Color.Transparent)))
+        // Scrims keep text readable over any backdrop. The dark part reaches further behind the wider column.
+        val textEdge = if (long) 0.75f else 0.62f
+        Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(0f to background, textEdge to background.copy(alpha = 0.85f), 1f to Color.Transparent)))
         Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0.5f to Color.Transparent, 1f to background)))
 
         Column(
             Modifier
                 .fillMaxHeight()
-                .fillMaxWidth(if (expanded) 0.7f else 0.58f)
-                .padding(start = Dimens.Gutter, top = 56.dp, bottom = Dimens.TopInset),
+                .fillMaxWidth(textEdge)
+                .padding(start = Dimens.Gutter, top = if (veryLong) Dimens.TopInset else 56.dp, bottom = Dimens.TopInset),
         ) {
-            Text(movie.title, style = MaterialTheme.typography.displaySmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text(
+                movie.title,
+                style = if (veryLong) MaterialTheme.typography.headlineMedium else MaterialTheme.typography.displaySmall,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
             Spacer(Modifier.height(12.dp))
             MovieMeta(movie.year, movie.voteAverage, prefix = movie.runtime?.let(::formatRuntime))
             if (movie.genres.isNotEmpty()) {
                 Spacer(Modifier.height(6.dp))
                 Text(movie.genres.joinToString("  ·  "), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            movie.tagline?.takeUnless { expanded }?.let {
+            movie.tagline?.takeUnless { veryLong }?.let {
                 Spacer(Modifier.height(16.dp))
                 Text(it, style = MaterialTheme.typography.titleSmall, fontStyle = FontStyle.Italic, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Spacer(Modifier.height(12.dp))
             Text(
-                movie.overview ?: "No overview available.",
-                // Expanded: smaller text that only takes the space left over, so the buttons stay on screen.
-                modifier = if (expanded) Modifier.weight(1f, fill = false) else Modifier,
-                style = if (expanded) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.bodyLarge,
-                maxLines = if (expanded) Int.MAX_VALUE else 3,
+                overview,
+                // Takes only the space left over, so the button can never be pushed off screen.
+                modifier = Modifier.weight(1f, fill = false),
+                style = if (long) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.bodyLarge,
                 overflow = TextOverflow.Ellipsis,
             )
-            if (!expanded) Credits(movie)
+            Credits(movie, namesMaxLines = if (veryLong) 1 else 2)
 
             Spacer(Modifier.height(24.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -142,23 +150,19 @@ fun DetailsContent(
                     Spacer(Modifier.width(ButtonDefaults.IconSpacing))
                     Text(if (inWatchlist) "In Watchlist" else "Add to Watchlist")
                 }
-                if ((movie.overview?.length ?: 0) > LONG_OVERVIEW) {
-                    OutlinedButton(onClick = { expanded = !expanded }) {
-                        Text(if (expanded) "Less" else "More")
-                    }
-                }
             }
         }
     }
     LaunchedEffect(movie.tmdbId) { runCatching { primary.requestFocus() } }
 }
 
-/** Overviews longer than this (about three lines) get a More/Less button. */
-private const val LONG_OVERVIEW = 200
+/** Character counts at which the layout tightens to fit the overview. */
+private const val LONG_OVERVIEW = 300
+private const val VERY_LONG_OVERVIEW = 600
 
 /** "Directed by …" and the top-billed cast, as on the website's movie page. */
 @Composable
-private fun Credits(movie: MovieDetail) {
+private fun Credits(movie: MovieDetail, namesMaxLines: Int) {
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
     @Composable
     fun line(label: String, names: List<String>) {
@@ -170,7 +174,7 @@ private fun Credits(movie: MovieDetail) {
                 append(names.joinToString(", "))
             },
             style = MaterialTheme.typography.bodyMedium,
-            maxLines = 2,
+            maxLines = namesMaxLines,
             overflow = TextOverflow.Ellipsis,
         )
     }
